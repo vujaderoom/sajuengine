@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.calendar.service import calculate_chart
+from app.core.case_authoring.service import CaseAuthoringRequest, generate_case_preview
 from app.core.cases.loader import get_case, summarize_cases
 from app.core.fact_builder.service import build_fact
 from app.core.governance.service import governance_dashboard
@@ -31,7 +32,7 @@ class RenderRequest(BaseModel):
     user_question: str = ""
 
 
-app = FastAPI(title="Saju Engine", version="0.11.0")
+app = FastAPI(title="Saju Engine", version="0.12.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -46,12 +47,13 @@ app.add_middleware(
 def root():
     return {
         "service": "sajuengine",
-        "version": "0.11.0",
+        "version": "0.12.0",
         "docs": "/docs",
         "health": "/api/health",
         "sample": "/api/v1/rule-runner/sample",
         "rules": "/api/v1/rules",
         "cases": "/api/v1/cases",
+        "case_authoring": "/api/v1/cases/authoring/preview",
         "regressions": "/api/v1/regressions/run",
         "governance": "/api/v1/governance",
         "report_preview": "/api/v1/reports/preview",
@@ -60,7 +62,7 @@ def root():
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "sajuengine", "version": "0.11.0"}
+    return {"status": "ok", "service": "sajuengine", "version": "0.12.0"}
 
 
 @app.get("/api/v1/governance")
@@ -71,6 +73,11 @@ def governance(version: str = "v1.0.0"):
 @app.get("/api/v1/cases")
 def cases():
     return {"cases": summarize_cases()}
+
+
+@app.post("/api/v1/cases/authoring/preview")
+def case_authoring_preview(request: CaseAuthoringRequest):
+    return generate_case_preview(request)
 
 
 @app.get("/api/v1/cases/{case_id}")
