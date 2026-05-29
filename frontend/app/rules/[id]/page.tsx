@@ -46,10 +46,15 @@ type SimulationResult = {
 export default function RuleDetailPage({ params }: { params: { id: string } }) {
   const [rule, setRule] = useState<RuleDetail | null>(null);
   const [simulation, setSimulation] = useState<SimulationResult | null>(null);
+  const [validation, setValidation] = useState<unknown>(null);
+  const [impact, setImpact] = useState<unknown>(null);
+  const [releasePreview, setReleasePreview] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
+  const [toolError, setToolError] = useState<string | null>(null);
   const [simError, setSimError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [simLoading, setSimLoading] = useState(false);
+  const [toolLoading, setToolLoading] = useState(false);
 
   async function loadRule() {
     setLoading(true);
@@ -91,8 +96,34 @@ export default function RuleDetailPage({ params }: { params: { id: string } }) {
     }
   }
 
+  async function loadRuleTools() {
+    setToolLoading(true);
+    setToolError(null);
+    try {
+      const [validationRes, impactRes, releaseRes] = await Promise.all([
+        fetch(`/api/rule-validation/${encodeURIComponent(params.id)}`, { cache: "no-store" }),
+        fetch(`/api/rule-impact/${encodeURIComponent(params.id)}`, { cache: "no-store" }),
+        fetch(`/api/rule-release/${encodeURIComponent(params.id)}`, { cache: "no-store" }),
+      ]);
+      const validationJson = await validationRes.json();
+      const impactJson = await impactRes.json();
+      const releaseJson = await releaseRes.json();
+      if (!validationRes.ok) throw new Error(validationJson?.detail ?? validationJson?.message ?? "validation failed");
+      if (!impactRes.ok) throw new Error(impactJson?.detail ?? impactJson?.message ?? "impact failed");
+      if (!releaseRes.ok) throw new Error(releaseJson?.detail ?? releaseJson?.message ?? "release preview failed");
+      setValidation(validationJson);
+      setImpact(impactJson);
+      setReleasePreview(releaseJson);
+    } catch (err) {
+      setToolError(err instanceof Error ? err.message : "unknown error");
+    } finally {
+      setToolLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadRule();
+    loadRuleTools();
   }, [params.id]);
 
   return (
@@ -103,6 +134,7 @@ export default function RuleDetailPage({ params }: { params: { id: string } }) {
           <Link href="/rules">← Rule Studio</Link>
         </p>
         <button onClick={loadRule}>{loading ? "불러오는 중..." : "Rule 새로고침"}</button>{" "}
+        <button onClick={loadRuleTools}>{toolLoading ? "검증 중..." : "Validator/Impact/Release 확인"}</button>{" "}
         <button onClick={simulateRule}>{simLoading ? "시뮬레이션 중..." : "현재 샘플 Fact로 시뮬레이션"}</button>
       </div>
 
@@ -112,6 +144,34 @@ export default function RuleDetailPage({ params }: { params: { id: string } }) {
           <p style={{ color: "#fca5a5" }}>{error}</p>
         </div>
       )}
+
+      {toolError && (
+        <div className="card">
+          <h2>Tool Error</h2>
+          <p style={{ color: "#fca5a5" }}>{toolError}</p>
+        </div>
+      )}
+
+      {validation ? (
+        <div className="card">
+          <h2>Rule DSL Validator</h2>
+          <pre>{JSON.stringify(validation, null, 2)}</pre>
+        </div>
+      ) : null}
+
+      {impact ? (
+        <div className="card">
+          <h2>Rule Impact Preview</h2>
+          <pre>{JSON.stringify(impact, null, 2)}</pre>
+        </div>
+      ) : null}
+
+      {releasePreview ? (
+        <div className="card">
+          <h2>Rule Release Workflow</h2>
+          <pre>{JSON.stringify(releasePreview, null, 2)}</pre>
+        </div>
+      ) : null}
 
       {simError && (
         <div className="card">
