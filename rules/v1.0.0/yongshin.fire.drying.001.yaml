@@ -1,0 +1,32 @@
+id: yongshin.fire.drying.001
+title: 침수형 己土 용신 후보 — 火 말림·증발
+layer: L2_PROPOSAL
+target: yongshin_candidate
+priority: 95
+enabled: true
+version: 1.0.0
+status: approved
+
+when:
+  all:
+    - fact.water.is_waterlogged == true
+    - fact.water.needs_drying == true
+    - fact.climate.month_branch == "巳"
+    - fact.medicine_need.preferred_element == "火"
+
+then:
+  propose:
+    proposal_id: prop_yongshin_fire_drying_001
+    candidate_type: yongshin
+    value: 火
+    score_delta: 4.0
+    reason: "巳月 己土가 癸水·壬水·亥水·申金 수원으로 논이 잠기는 물상이다. 火는 온도 회복이 아니라 말림·건조·증발로 작동하므로 巳火·午火·丙火·丁火를 용신 후보군으로 본다."
+    confidence_signal: strong
+    symbols: [巳火, 午火, 丙火, 丁火]
+    action: drying_evaporation
+
+explain:
+  ko: "여름 巳月의 온기는 이미 있으나 수원이 강해 따뜻한 비가 논을 잠기게 하므로 火를 말림·증발의 약으로 쓴다."
+
+evidence_query:
+  tags: [용신, 火, 巳火, 午火, 丙火, 丁火, 말림, 건조, 증발, 침수형]
