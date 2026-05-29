@@ -1,0 +1,26 @@
+id: GC-003
+title: 입춘 직후 연주 경계 샘플
+status: approved
+version: 1.0.0
+
+birth:
+  name: GC-003
+  sex: unknown
+  birth_datetime: "1991-02-04T12:00:00"
+  calendar_type: solar
+  timezone: Asia/Seoul
+  location: Seoul
+
+expected:
+  chart:
+    year: 辛未
+    month: 庚寅
+  chart_result:
+    calendar_meta:
+      solar_year_for_pillar: 1991
+      month_boundary: 立春
+      month_branch: 寅
+
+notes:
+  - 입춘 이후이므로 연주는 辛未로 전환
+  - 寅월 시작 검증 케이스
