@@ -1,0 +1,28 @@
+id: medicine.flow.opening.001
+title: 유통 개통형 약 후보
+layer: L2_PROPOSAL
+target: medicine_candidate
+priority: 70
+enabled: true
+version: 1.0.0
+status: approved
+
+when:
+  all:
+    - fact.flow.support_path != "open"
+    - fact.binding.BindingStrength >= 2
+
+then:
+  propose:
+    proposal_id: prop_medicine_001
+    candidate_type: medicine
+    value: 유통 개통형
+    score_delta: 2.0
+    reason: "흐름이 막힌 구조를 여는 약 후보입니다."
+    confidence_signal: strong
+
+explain:
+  ko: "흐름이 닫혀 있고 결속이 강하면 개통형 약 후보를 제안합니다."
+
+evidence_query:
+  tags: [약, 유통, 개통]
