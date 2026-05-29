@@ -6,14 +6,31 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.calendar.service import calculate_chart
 from app.core.cases.loader import get_case, summarize_cases
 from app.core.fact_builder.service import build_fact
+from app.core.llm.renderer import render_report
+from app.core.llm.verifier import verify_output
 from app.core.regression.runner import run_case_by_id, run_regressions
 from app.core.report_payload.builder import build_report_payload
 from app.core.rule_dsl.loader import detail_rule, summarize_rules
 from app.core.rule_dsl.simulator import simulate_rule
+from app.core.rule_dsl.validator import validate_all_rules, validate_rule_by_id
+from app.core.rule_impact.service import rule_impact
+from app.core.rule_release.workflow import release_readiness, rule_release_preview
 from app.core.rule_runner.service import execute_rule_runner
 from app.schemas import BirthInput, RuleRunnerRequest
+from pydantic import BaseModel
 
-app = FastAPI(title="Saju Engine", version="0.9.0")
+
+class VerifyRequest(BaseModel):
+    engine_result_json: dict
+    report_text: str
+
+
+class RenderRequest(BaseModel):
+    request: RuleRunnerRequest = RuleRunnerRequest()
+    user_question: str = ""
+
+
+app = FastAPI(title="Saju Engine", version="0.10.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,7 +45,7 @@ app.add_middleware(
 def root():
     return {
         "service": "sajuengine",
-        "version": "0.9.0",
+        "version": "0.10.0",
         "docs": "/docs",
         "health": "/api/health",
         "sample": "/api/v1/rule-runner/sample",
@@ -41,7 +58,7 @@ def root():
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "sajuengine", "version": "0.9.0"}
+    return {"status": "ok", "service": "sajuengine", "version": "0.10.0"}
 
 
 @app.get("/api/v1/cases")
@@ -70,12 +87,43 @@ def rules(version: str = "v1.0.0"):
     return {"rule_version": version, "rules": summarize_rules(version)}
 
 
+@app.get("/api/v1/rules/validate")
+def rules_validate(version: str = "v1.0.0"):
+    return validate_all_rules(version)
+
+
+@app.get("/api/v1/rules/release/readiness")
+def rules_release_readiness(version: str = "v1.0.0"):
+    return release_readiness(version)
+
+
 @app.get("/api/v1/rules/{rule_id}")
 def rule_detail(rule_id: str, version: str = "v1.0.0"):
     rule = detail_rule(rule_id, version)
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
     return rule
+
+
+@app.get("/api/v1/rules/{rule_id}/validate")
+def rule_validate(rule_id: str, version: str = "v1.0.0"):
+    result = validate_rule_by_id(rule_id, version)
+    if not result:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return result
+
+
+@app.get("/api/v1/rules/{rule_id}/impact")
+def rule_impact_preview(rule_id: str):
+    return rule_impact(rule_id)
+
+
+@app.get("/api/v1/rules/{rule_id}/release-preview")
+def rule_release(rule_id: str, version: str = "v1.0.0"):
+    result = rule_release_preview(rule_id, version)
+    if not result:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return result
 
 
 @app.post("/api/v1/rules/{rule_id}/simulate")
@@ -99,6 +147,19 @@ def report_preview(request: RuleRunnerRequest):
 @app.get("/api/v1/reports/preview/sample")
 def report_preview_sample():
     return build_report_payload(RuleRunnerRequest())
+
+
+@app.post("/api/v1/llm/render")
+def llm_render(render_request: RenderRequest):
+    payload = build_report_payload(render_request.request)["report_payload"]
+    rendered = render_report(payload, render_request.user_question)
+    verifier = verify_output(payload, rendered["report_text"])
+    return {"report_payload": payload, "rendered": rendered, "verifier_result": verifier}
+
+
+@app.post("/api/v1/llm/verify-output")
+def llm_verify(request: VerifyRequest):
+    return verify_output(request.engine_result_json, request.report_text)
 
 
 @app.post("/api/v1/charts/calculate")
