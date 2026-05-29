@@ -1,0 +1,24 @@
+id: GC-004
+title: 입하 직전 월주 경계 샘플
+status: approved
+version: 1.0.0
+
+birth:
+  name: GC-004
+  sex: unknown
+  birth_datetime: "1991-05-05T12:00:00"
+  calendar_type: solar
+  timezone: Asia/Seoul
+  location: Seoul
+
+expected:
+  chart:
+    year: 辛未
+    month: 壬辰
+  chart_result:
+    calendar_meta:
+      month_boundary: 淸明
+      month_branch: 辰
+
+notes:
+  - 고정 절입일 scaffold 기준 5월 5일은 아직 辰월
