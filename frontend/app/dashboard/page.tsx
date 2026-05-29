@@ -32,6 +32,24 @@ type EngineResponse = {
   decision_trace: unknown[];
 };
 
+function getBackendBaseUrl() {
+  if (typeof window === "undefined") {
+    return "http://127.0.0.1:8000";
+  }
+
+  const origin = window.location.origin;
+
+  if (origin.includes("-3000.app.github.dev")) {
+    return origin.replace("-3000.app.github.dev", "-8000.app.github.dev");
+  }
+
+  if (origin.includes(":3000")) {
+    return origin.replace(":3000", ":8000");
+  }
+
+  return "http://127.0.0.1:8000";
+}
+
 export default function DashboardPage() {
   const [name, setName] = useState("sample");
   const [sex, setSex] = useState("male");
@@ -39,12 +57,16 @@ export default function DashboardPage() {
   const [result, setResult] = useState<EngineResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastApiUrl, setLastApiUrl] = useState<string | null>(null);
 
   async function runEngine() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/rule-runner/execute", {
+      const apiUrl = `${getBackendBaseUrl()}/api/v1/rule-runner/execute`;
+      setLastApiUrl(apiUrl);
+
+      const res = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -107,6 +129,7 @@ export default function DashboardPage() {
           />
         </label>
         <button onClick={runEngine}>{loading ? "실행 중..." : "Rule Runner 실행"}</button>
+        {lastApiUrl && <p style={{ color: "#94a3b8" }}>API: {lastApiUrl}</p>}
         {error && <p style={{ color: "#fca5a5" }}>Error: {error}</p>}
       </div>
 
