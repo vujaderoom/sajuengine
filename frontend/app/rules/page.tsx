@@ -75,7 +75,9 @@ export default function RulesPage() {
 
           {data.rules.map((rule) => (
             <div className="card" key={rule.id}>
-              <h2>{rule.id}</h2>
+              <h2>
+                <Link href={`/rules/${encodeURIComponent(rule.id)}`}>{rule.id}</Link>
+              </h2>
               <p>{rule.title}</p>
               <p>
                 <span className="badge">layer: {rule.layer}</span>
@@ -85,6 +87,9 @@ export default function RulesPage() {
                 <span className="badge">status: {rule.status}</span>
               </p>
               <pre>{rule.path}</pre>
+              <p>
+                <Link href={`/rules/${encodeURIComponent(rule.id)}`}>상세 보기 →</Link>
+              </p>
             </div>
           ))}
         </>
