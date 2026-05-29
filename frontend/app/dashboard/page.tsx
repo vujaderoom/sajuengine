@@ -103,6 +103,7 @@ export default function DashboardPage() {
           ReportPayload 흐름 검증 화면입니다.
         </p>
         <p>
+          <Link href="/governance">Rule Governance 열기 →</Link>{" | "}
           <Link href="/cases">Case Ledger 열기 →</Link>{" | "}
           <Link href="/rules">Rule Studio 열기 →</Link>{" | "}
           <Link href="/regressions">Regression Runner 열기 →</Link>{" | "}
