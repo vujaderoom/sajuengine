@@ -23,22 +23,30 @@ def _pillar_text(chart: dict[str, Any] | None) -> str:
 
 def _extract_interpretation_summary(case: dict[str, Any]) -> dict[str, Any]:
     expected = case.get("expected", {}) or {}
+    interpretation = case.get("interpretation", {}) or {}
     final_result = expected.get("final_result", {}) or {}
     facts = expected.get("facts", {}) or {}
     water = facts.get("water", {}) or {}
     medicine_need = facts.get("medicine_need", {}) or {}
+    disease_logic = interpretation.get("disease_logic", {}) or {}
+    medicine_logic = interpretation.get("medicine_logic", {}) or {}
+    yongshin_logic = interpretation.get("yongshin_logic", {}) or {}
 
     return {
-        "core_disease": final_result.get("core_disease"),
+        "core_disease": disease_logic.get("core") or final_result.get("core_disease"),
+        "subtype": disease_logic.get("subtype"),
         "derived_diseases": final_result.get("derived_diseases", []),
-        "medicine": final_result.get("medicine"),
-        "yongshin": final_result.get("yongshin"),
-        "yongshin_symbols": final_result.get("yongshin_symbols", []),
+        "medicine": final_result.get("medicine") or medicine_logic.get("action"),
+        "medicine_type": medicine_logic.get("type"),
+        "yongshin": final_result.get("yongshin") or yongshin_logic.get("primary"),
+        "yongshin_symbols": final_result.get("yongshin_symbols", []) or yongshin_logic.get("symbols", []),
         "selected_yongshin_source_rule": final_result.get("selected_yongshin_source_rule"),
         "water_is_waterlogged": water.get("is_waterlogged"),
         "water_needs_drying": water.get("needs_drying"),
         "preferred_element": medicine_need.get("preferred_element"),
         "primary_action": medicine_need.get("primary_action"),
+        "linked_rules": interpretation.get("linked_rules", []),
+        "excluded": yongshin_logic.get("excluded", []),
     }
 
 
@@ -73,6 +81,7 @@ def summarize_cases() -> list[dict[str, Any]]:
                 "birth": birth,
                 "chart": chart,
                 "pillar_text": _pillar_text(chart),
+                "interpretation": case.get("interpretation", {}),
                 "interpretation_summary": _extract_interpretation_summary(case),
                 "notes": case.get("notes", []),
             }
@@ -95,6 +104,7 @@ def get_case(case_id: str) -> dict[str, Any] | None:
                 "chart": chart,
                 "pillar_text": _pillar_text(chart),
                 "expected": expected,
+                "interpretation": case.get("interpretation", {}),
                 "interpretation_summary": _extract_interpretation_summary(case),
                 "notes": case.get("notes", []),
                 "raw_yaml": case.get("_raw_yaml", ""),
