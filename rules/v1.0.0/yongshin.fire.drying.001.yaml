@@ -6,6 +6,8 @@ priority: 95
 enabled: true
 version: 1.0.0
 status: approved
+created_by: system
+approved_by: reviewer
 
 when:
   all:
@@ -25,8 +27,18 @@ then:
     symbols: [巳火, 午火, 丙火, 丁火]
     action: drying_evaporation
 
+score:
+  base: 4.0
+  max_contribution: 5.0
+
+counter_rules: []
+
 explain:
   ko: "여름 巳月의 온기는 이미 있으나 수원이 강해 따뜻한 비가 논을 잠기게 하므로 火를 말림·증발의 약으로 쓴다."
 
 evidence_query:
   tags: [용신, 火, 巳火, 午火, 丙火, 丁火, 말림, 건조, 증발, 침수형]
+
+tests:
+  positive_cases: [GC-001]
+  negative_cases: []
