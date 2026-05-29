@@ -35,6 +35,7 @@ type EngineResponse = {
     derived_diseases: string[];
     medicine: string;
     yongshin: string;
+    yongshin_symbols?: string[];
     secondary_yongshin: string[];
     depth: number;
     stability_grade: string;
@@ -100,7 +101,8 @@ export default function DashboardPage() {
           Finalizer → Decision Trace 흐름 검증 화면입니다.
         </p>
         <p>
-          <Link href="/rules">Rule Studio 열기 →</Link>
+          <Link href="/rules">Rule Studio 열기 →</Link>{" | "}
+          <Link href="/regressions">Regression Runner 열기 →</Link>
         </p>
       </div>
 
@@ -160,6 +162,11 @@ export default function DashboardPage() {
             <p>
               <span className="badge">용신: {result.final_result.yongshin}</span>
             </p>
+            {result.final_result.yongshin_symbols?.length ? (
+              <p>
+                <span className="badge">세부 후보: {result.final_result.yongshin_symbols.join(", ")}</span>
+              </p>
+            ) : null}
             <p>Depth: {result.final_result.depth}</p>
             <p>Confidence: {result.final_result.confidence}</p>
           </div>
