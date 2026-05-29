@@ -5,12 +5,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.calendar.service import calculate_chart
 from app.core.fact_builder.service import build_fact
+from app.core.regression.runner import run_regressions
 from app.core.rule_dsl.loader import detail_rule, summarize_rules
 from app.core.rule_dsl.simulator import simulate_rule
 from app.core.rule_runner.service import execute_rule_runner
 from app.schemas import BirthInput, RuleRunnerRequest
 
-app = FastAPI(title="Saju Engine", version="0.6.0")
+app = FastAPI(title="Saju Engine", version="0.7.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,17 +26,18 @@ app.add_middleware(
 def root():
     return {
         "service": "sajuengine",
-        "version": "0.6.0",
+        "version": "0.7.0",
         "docs": "/docs",
         "health": "/api/health",
         "sample": "/api/v1/rule-runner/sample",
         "rules": "/api/v1/rules",
+        "regressions": "/api/v1/regressions/run",
     }
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "sajuengine", "version": "0.6.0"}
+    return {"status": "ok", "service": "sajuengine", "version": "0.7.0"}
 
 
 @app.get("/api/v1/rules")
@@ -57,6 +59,11 @@ def rule_simulate(rule_id: str, birth: BirthInput | None = None, version: str = 
     if not result:
         raise HTTPException(status_code=404, detail="Rule not found")
     return result
+
+
+@app.get("/api/v1/regressions/run")
+def regression_run():
+    return run_regressions()
 
 
 @app.post("/api/v1/charts/calculate")
