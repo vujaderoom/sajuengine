@@ -64,6 +64,13 @@ def load_golden_cases() -> list[dict[str, Any]]:
     return cases
 
 
+def get_golden_case(case_id: str) -> dict[str, Any] | None:
+    for case in load_golden_cases():
+        if case.get("id") == case_id:
+            return case
+    return None
+
+
 def run_single_case(case: dict[str, Any]) -> dict[str, Any]:
     birth = BirthInput(**case["birth"])
     result = execute_rule_runner(RuleRunnerRequest(birth=birth))
@@ -93,6 +100,13 @@ def run_single_case(case: dict[str, Any]) -> dict[str, Any]:
         "checks": checks,
         "actual_result": result,
     }
+
+
+def run_case_by_id(case_id: str) -> dict[str, Any] | None:
+    case = get_golden_case(case_id)
+    if not case:
+        return None
+    return run_single_case(case)
 
 
 def run_regressions() -> dict[str, Any]:
