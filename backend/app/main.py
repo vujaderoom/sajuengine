@@ -7,12 +7,13 @@ from app.core.calendar.service import calculate_chart
 from app.core.cases.loader import get_case, summarize_cases
 from app.core.fact_builder.service import build_fact
 from app.core.regression.runner import run_case_by_id, run_regressions
+from app.core.report_payload.builder import build_report_payload
 from app.core.rule_dsl.loader import detail_rule, summarize_rules
 from app.core.rule_dsl.simulator import simulate_rule
 from app.core.rule_runner.service import execute_rule_runner
 from app.schemas import BirthInput, RuleRunnerRequest
 
-app = FastAPI(title="Saju Engine", version="0.8.1")
+app = FastAPI(title="Saju Engine", version="0.9.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,19 +28,20 @@ app.add_middleware(
 def root():
     return {
         "service": "sajuengine",
-        "version": "0.8.1",
+        "version": "0.9.0",
         "docs": "/docs",
         "health": "/api/health",
         "sample": "/api/v1/rule-runner/sample",
         "rules": "/api/v1/rules",
         "cases": "/api/v1/cases",
         "regressions": "/api/v1/regressions/run",
+        "report_preview": "/api/v1/reports/preview",
     }
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "sajuengine", "version": "0.8.1"}
+    return {"status": "ok", "service": "sajuengine", "version": "0.9.0"}
 
 
 @app.get("/api/v1/cases")
@@ -87,6 +89,16 @@ def rule_simulate(rule_id: str, birth: BirthInput | None = None, version: str = 
 @app.get("/api/v1/regressions/run")
 def regression_run():
     return run_regressions()
+
+
+@app.post("/api/v1/reports/preview")
+def report_preview(request: RuleRunnerRequest):
+    return build_report_payload(request)
+
+
+@app.get("/api/v1/reports/preview/sample")
+def report_preview_sample():
+    return build_report_payload(RuleRunnerRequest())
 
 
 @app.post("/api/v1/charts/calculate")
