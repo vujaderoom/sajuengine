@@ -1,0 +1,26 @@
+id: GC-006
+title: 子時 시주 경계 샘플
+status: approved
+version: 1.0.0
+
+birth:
+  name: GC-006
+  sex: unknown
+  birth_datetime: "1991-05-29T23:40:00"
+  calendar_type: solar
+  timezone: Asia/Seoul
+  location: Seoul
+
+expected:
+  chart:
+    year: 辛未
+    month: 癸巳
+    day: 己亥
+    hour: 甲子
+  chart_result:
+    calendar_meta:
+      late_zi_next_day: false
+
+notes:
+  - v0.1 기본값은 야자시 익일 전환을 적용하지 않음
+  - 己日 子時는 甲子로 계산
