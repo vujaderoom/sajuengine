@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 type LoadedRule = {
@@ -97,6 +98,9 @@ export default function DashboardPage() {
         <p>
           BirthInput → Chart Scaffold → Fact Builder → YAML Rule DSL → Proposal → Counter Rule →
           Finalizer → Decision Trace 흐름 검증 화면입니다.
+        </p>
+        <p>
+          <Link href="/rules">Rule Studio 열기 →</Link>
         </p>
       </div>
 
