@@ -1,0 +1,42 @@
+id: disease.flow.blocked.001
+title: 유통 차단형 병 후보 — 흐름 차단
+layer: L2_PROPOSAL
+target: core_disease_candidate
+priority: 80
+enabled: true
+version: 1.0.0
+status: approved
+
+when:
+  all:
+    - fact.flow.blocked == true
+    - fact.binding.BindingStrength >= 2
+    - fact.flow.support_path == "weak_or_broken"
+
+then:
+  propose:
+    proposal_id: prop_flow_001
+    candidate_type: core_disease
+    value: 유통 차단형 병
+    score_delta: 2.0
+    reason: "생극 흐름이 결속이나 고립으로 막혀 유통 차단형 병 후보가 됩니다."
+    confidence_signal: strong
+
+score:
+  base: 2.0
+  max_contribution: 3.0
+
+counter_rules:
+  - id: counter.flow.open_path.001
+    when:
+      any:
+        - fact.flow.support_path == "open"
+    effect:
+      score_delta: -1.0
+      reason: "유통 경로가 열려 있어 차단 후보를 감점합니다."
+
+explain:
+  ko: "흐름이 막히고 결속이 강하면 유통 차단형 병 후보로 봅니다."
+
+evidence_query:
+  tags: [유통, 차단, 생극, 합충, 결속]
