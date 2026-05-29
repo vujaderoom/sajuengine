@@ -17,13 +17,33 @@ type ReportResponse = {
   };
 };
 
+type RenderResponse = {
+  report_payload: unknown;
+  rendered: { report_text: string; renderer_input_json: unknown };
+  verifier_result: unknown;
+};
+
 export default function ReportPreviewPage() {
   const [name, setName] = useState("sample");
   const [sex, setSex] = useState("male");
   const [birthDatetime, setBirthDatetime] = useState("1991-05-29T16:36:00");
   const [data, setData] = useState<ReportResponse | null>(null);
+  const [rendered, setRendered] = useState<RenderResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [renderLoading, setRenderLoading] = useState(false);
+
+  const runnerRequest = {
+    rule_version: "v1.0.0",
+    birth: {
+      name,
+      sex,
+      birth_datetime: birthDatetime,
+      calendar_type: "solar",
+      timezone: "Asia/Seoul",
+      location: "Seoul",
+    },
+  };
 
   async function buildReportPayload() {
     setLoading(true);
@@ -32,17 +52,7 @@ export default function ReportPreviewPage() {
       const res = await fetch("/api/reports/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rule_version: "v1.0.0",
-          birth: {
-            name,
-            sex,
-            birth_datetime: birthDatetime,
-            calendar_type: "solar",
-            timezone: "Asia/Seoul",
-            location: "Seoul",
-          },
-        }),
+        body: JSON.stringify(runnerRequest),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -53,6 +63,27 @@ export default function ReportPreviewPage() {
       setError(err instanceof Error ? err.message : "unknown error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function renderReport() {
+    setRenderLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/llm/render", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ request: runnerRequest, user_question: "" }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.message ?? `API error: ${res.status}`);
+      }
+      setRendered(json);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "unknown error");
+    } finally {
+      setRenderLoading(false);
     }
   }
 
@@ -92,13 +123,24 @@ export default function ReportPreviewPage() {
             placeholder="1991-05-29T16:36:00"
           />
         </label>
-        <button onClick={buildReportPayload}>{loading ? "생성 중..." : "Report Payload 생성"}</button>
+        <button onClick={buildReportPayload}>{loading ? "생성 중..." : "Report Payload 생성"}</button>{" "}
+        <button onClick={renderReport}>{renderLoading ? "렌더링 중..." : "Report Renderer 초안 실행"}</button>
       </div>
 
       {error && (
         <div className="card">
           <h2>Error</h2>
           <p style={{ color: "#fca5a5" }}>{error}</p>
+        </div>
+      )}
+
+      {rendered && (
+        <div className="card">
+          <h2>Rendered Report Draft + Output Verifier</h2>
+          <h3>Report Draft</h3>
+          <pre>{rendered.rendered.report_text}</pre>
+          <h3>Verifier Result</h3>
+          <pre>{JSON.stringify(rendered.verifier_result, null, 2)}</pre>
         </div>
       )}
 
