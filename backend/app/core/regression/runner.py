@@ -17,9 +17,22 @@ def golden_cases_dir() -> Path:
     return _repo_root() / "golden_cases"
 
 
+def _normalize_path(dotted_path: str) -> str:
+    if dotted_path.startswith("chart."):
+        return dotted_path.replace("chart.", "chart_result.chart.", 1)
+    if dotted_path.startswith("facts."):
+        return dotted_path
+    if dotted_path.startswith("final_result."):
+        return dotted_path
+    if dotted_path.startswith("chart_result."):
+        return dotted_path
+    return dotted_path
+
+
 def _get_path(data: dict[str, Any], dotted_path: str) -> Any:
+    normalized = _normalize_path(dotted_path)
     current: Any = data
-    for part in dotted_path.split("."):
+    for part in normalized.split("."):
         if isinstance(current, dict):
             current = current.get(part)
         else:
@@ -63,6 +76,7 @@ def run_single_case(case: dict[str, Any]) -> dict[str, Any]:
         checks.append(
             {
                 "path": path,
+                "resolved_path": _normalize_path(path),
                 "expected": expected,
                 "actual": actual,
                 "passed": passed,
