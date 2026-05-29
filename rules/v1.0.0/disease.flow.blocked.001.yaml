@@ -6,6 +6,8 @@ priority: 80
 enabled: true
 version: 1.0.0
 status: approved
+created_by: system
+approved_by: reviewer
 
 when:
   all:
@@ -40,3 +42,7 @@ explain:
 
 evidence_query:
   tags: [유통, 차단, 생극, 합충, 결속]
+
+tests:
+  positive_cases: [GC-001]
+  negative_cases: []
