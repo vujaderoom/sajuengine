@@ -22,10 +22,34 @@ type RuleDetail = {
   raw_yaml: string;
 };
 
+type SimulationResult = {
+  rule_version: string;
+  fired: boolean;
+  condition_eval: {
+    result: boolean;
+    mode?: string;
+    items: Array<{
+      condition: string;
+      left: string;
+      operator: string;
+      right: unknown;
+      actual: unknown;
+      result: boolean;
+      error?: string;
+    }>;
+  };
+  proposal_preview: unknown;
+  chart_result: unknown;
+  facts: unknown;
+};
+
 export default function RuleDetailPage({ params }: { params: { id: string } }) {
   const [rule, setRule] = useState<RuleDetail | null>(null);
+  const [simulation, setSimulation] = useState<SimulationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [simError, setSimError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [simLoading, setSimLoading] = useState(false);
 
   async function loadRule() {
     setLoading(true);
@@ -46,6 +70,27 @@ export default function RuleDetailPage({ params }: { params: { id: string } }) {
     }
   }
 
+  async function simulateRule() {
+    setSimLoading(true);
+    setSimError(null);
+    try {
+      const res = await fetch(`/api/rules/${encodeURIComponent(params.id)}/simulate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.detail ?? json?.message ?? `API error: ${res.status}`);
+      }
+      setSimulation(json);
+    } catch (err) {
+      setSimError(err instanceof Error ? err.message : "unknown error");
+    } finally {
+      setSimLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadRule();
   }, [params.id]);
@@ -57,13 +102,49 @@ export default function RuleDetailPage({ params }: { params: { id: string } }) {
         <p>
           <Link href="/rules">← Rule Studio</Link>
         </p>
-        <button onClick={loadRule}>{loading ? "불러오는 중..." : "Rule 새로고침"}</button>
+        <button onClick={loadRule}>{loading ? "불러오는 중..." : "Rule 새로고침"}</button>{" "}
+        <button onClick={simulateRule}>{simLoading ? "시뮬레이션 중..." : "현재 샘플 Fact로 시뮬레이션"}</button>
       </div>
 
       {error && (
         <div className="card">
           <h2>Error</h2>
           <p style={{ color: "#fca5a5" }}>{error}</p>
+        </div>
+      )}
+
+      {simError && (
+        <div className="card">
+          <h2>Simulation Error</h2>
+          <p style={{ color: "#fca5a5" }}>{simError}</p>
+        </div>
+      )}
+
+      {simulation && (
+        <div className="card">
+          <h2>Simulation Result</h2>
+          <p>
+            <span className="badge">fired: {String(simulation.fired)}</span>
+            <span className="badge">mode: {simulation.condition_eval?.mode ?? "none"}</span>
+            <span className="badge">result: {String(simulation.condition_eval?.result)}</span>
+          </p>
+          <h3>Condition Evaluation</h3>
+          {simulation.condition_eval?.items?.map((item, index) => (
+            <div className="card" key={`${item.condition}-${index}`}>
+              <p>
+                <strong>{item.condition}</strong>
+              </p>
+              <p>
+                <span className="badge">actual: {JSON.stringify(item.actual)}</span>
+                <span className="badge">expected: {JSON.stringify(item.right)}</span>
+                <span className="badge">operator: {item.operator}</span>
+                <span className="badge">result: {String(item.result)}</span>
+              </p>
+              {item.error && <p style={{ color: "#fca5a5" }}>{item.error}</p>}
+            </div>
+          ))}
+          <h3>Proposal Preview</h3>
+          <pre>{JSON.stringify(simulation.proposal_preview, null, 2)}</pre>
         </div>
       )}
 
