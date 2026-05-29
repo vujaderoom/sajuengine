@@ -32,24 +32,6 @@ type EngineResponse = {
   decision_trace: unknown[];
 };
 
-function getBackendBaseUrl() {
-  if (typeof window === "undefined") {
-    return "http://127.0.0.1:8000";
-  }
-
-  const origin = window.location.origin;
-
-  if (origin.includes("-3000.app.github.dev")) {
-    return origin.replace("-3000.app.github.dev", "-8000.app.github.dev");
-  }
-
-  if (origin.includes(":3000")) {
-    return origin.replace(":3000", ":8000");
-  }
-
-  return "http://127.0.0.1:8000";
-}
-
 export default function DashboardPage() {
   const [name, setName] = useState("sample");
   const [sex, setSex] = useState("male");
@@ -63,7 +45,7 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `${getBackendBaseUrl()}/api/v1/rule-runner/execute`;
+      const apiUrl = "/api/rule-runner";
       setLastApiUrl(apiUrl);
 
       const res = await fetch(apiUrl, {
@@ -82,11 +64,13 @@ export default function DashboardPage() {
         }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
+        throw new Error(data?.message ?? `API error: ${res.status}`);
       }
 
-      setResult(await res.json());
+      setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "unknown error");
     } finally {
