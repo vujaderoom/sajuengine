@@ -2,6 +2,15 @@
 
 import { useState } from "react";
 
+type LoadedRule = {
+  id: string;
+  title: string;
+  layer: string;
+  target: string;
+  priority: number;
+  enabled: boolean;
+};
+
 type EngineResponse = {
   execution_id: string;
   chart_id: string;
@@ -17,6 +26,7 @@ type EngineResponse = {
     engine_notes: string[];
   };
   facts: unknown;
+  loaded_rules: LoadedRule[];
   proposals: unknown[];
   counter_rules_applied: unknown[];
   final_result: {
@@ -85,7 +95,7 @@ export default function DashboardPage() {
       <div className="card">
         <h1>Rule Studio Dashboard MVP</h1>
         <p>
-          BirthInput → Chart Scaffold → Fact Builder → Rule Runner → Proposal → Counter Rule →
+          BirthInput → Chart Scaffold → Fact Builder → YAML Rule DSL → Proposal → Counter Rule →
           Finalizer → Decision Trace 흐름 검증 화면입니다.
         </p>
       </div>
@@ -128,6 +138,11 @@ export default function DashboardPage() {
               <span className="badge">시주: {chart.hour}</span>
             </p>
             <pre>{JSON.stringify(result.chart_result.engine_notes, null, 2)}</pre>
+          </div>
+
+          <div className="card">
+            <h2>Loaded YAML Rules</h2>
+            <pre>{JSON.stringify(result.loaded_rules, null, 2)}</pre>
           </div>
 
           <div className="card">
