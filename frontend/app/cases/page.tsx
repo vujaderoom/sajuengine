@@ -26,8 +26,10 @@ type CaseSummary = {
   pillar_text: string;
   interpretation_summary: {
     core_disease?: string;
+    subtype?: string;
     derived_diseases?: string[];
     medicine?: string;
+    medicine_type?: string;
     yongshin?: string;
     yongshin_symbols?: string[];
     selected_yongshin_source_rule?: string;
@@ -35,6 +37,7 @@ type CaseSummary = {
     water_needs_drying?: boolean;
     preferred_element?: string;
     primary_action?: string;
+    linked_rules?: string[];
   };
   notes: string[];
 };
@@ -80,10 +83,13 @@ export default function CasesPage() {
         item.title,
         item.pillar_text,
         item.interpretation_summary?.core_disease,
+        item.interpretation_summary?.subtype,
         item.interpretation_summary?.medicine,
+        item.interpretation_summary?.medicine_type,
         item.interpretation_summary?.yongshin,
         item.interpretation_summary?.selected_yongshin_source_rule,
         ...(item.interpretation_summary?.yongshin_symbols ?? []),
+        ...(item.interpretation_summary?.linked_rules ?? []),
         ...(item.notes ?? []),
       ]
         .filter(Boolean)
@@ -100,6 +106,7 @@ export default function CasesPage() {
         <p>Golden Case가 어떤 원국과 어떤 해석 논리로 저장됐는지 관리하는 화면입니다.</p>
         <p>
           <Link href="/dashboard">← Dashboard</Link>{" | "}
+          <Link href="/cases/new">New Case Authoring</Link>{" | "}
           <Link href="/rules">Rule Studio</Link>{" | "}
           <Link href="/regressions">Regression Runner</Link>
         </p>
@@ -142,12 +149,18 @@ export default function CasesPage() {
           </p>
           <p>
             <span className="badge">핵심 병: {item.interpretation_summary?.core_disease ?? "미지정"}</span>
+            <span className="badge">세부 병: {item.interpretation_summary?.subtype ?? "미지정"}</span>
             <span className="badge">약: {item.interpretation_summary?.medicine ?? "미지정"}</span>
             <span className="badge">용신: {item.interpretation_summary?.yongshin ?? "미지정"}</span>
           </p>
           {item.interpretation_summary?.yongshin_symbols?.length ? (
             <p>
               <span className="badge">세부 후보: {item.interpretation_summary.yongshin_symbols.join(", ")}</span>
+            </p>
+          ) : null}
+          {item.interpretation_summary?.linked_rules?.length ? (
+            <p>
+              <span className="badge">linked rules: {item.interpretation_summary.linked_rules.join(", ")}</span>
             </p>
           ) : null}
           {item.notes?.length ? <pre>{item.notes.join("\n")}</pre> : null}
