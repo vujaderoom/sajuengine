@@ -26,10 +26,11 @@ type EngineResponse = {
     };
     engine_notes: string[];
   };
-  facts: unknown;
+  facts: Record<string, unknown>;
   loaded_rules: LoadedRule[];
   proposals: unknown[];
   counter_rules_applied: unknown[];
+  final_engine_result?: unknown;
   final_result: {
     core_disease: string;
     derived_diseases: string[];
@@ -40,6 +41,7 @@ type EngineResponse = {
     depth: number;
     stability_grade: string;
     confidence: number;
+    confidence_detail?: { level?: string };
   };
   decision_trace: unknown[];
 };
@@ -97,13 +99,14 @@ export default function DashboardPage() {
       <div className="card">
         <h1>Rule Studio Dashboard MVP</h1>
         <p>
-          BirthInput → Chart Scaffold → Fact Builder → YAML Rule DSL → Proposal → Counter Rule →
-          Finalizer → Decision Trace 흐름 검증 화면입니다.
+          BirthInput → Calendar Engine → Fact Builder v2 → YAML Rule DSL → Formal Finalizer →
+          ReportPayload 흐름 검증 화면입니다.
         </p>
         <p>
           <Link href="/cases">Case Ledger 열기 →</Link>{" | "}
           <Link href="/rules">Rule Studio 열기 →</Link>{" | "}
-          <Link href="/regressions">Regression Runner 열기 →</Link>
+          <Link href="/regressions">Regression Runner 열기 →</Link>{" | "}
+          <Link href="/reports/preview">Report Payload Preview 열기 →</Link>
         </p>
       </div>
 
@@ -148,19 +151,10 @@ export default function DashboardPage() {
           </div>
 
           <div className="card">
-            <h2>Loaded YAML Rules</h2>
-            <pre>{JSON.stringify(result.loaded_rules, null, 2)}</pre>
-          </div>
-
-          <div className="card">
             <h2>Finalizer 결과</h2>
             <p>
               <span className="badge">핵심 병: {result.final_result.core_disease}</span>
-            </p>
-            <p>
               <span className="badge">약: {result.final_result.medicine}</span>
-            </p>
-            <p>
               <span className="badge">용신: {result.final_result.yongshin}</span>
             </p>
             {result.final_result.yongshin_symbols?.length ? (
@@ -168,10 +162,40 @@ export default function DashboardPage() {
                 <span className="badge">세부 후보: {result.final_result.yongshin_symbols.join(", ")}</span>
               </p>
             ) : null}
-            <p>Depth: {result.final_result.depth}</p>
-            <p>Confidence: {result.final_result.confidence}</p>
+            <p>
+              <span className="badge">Depth: {result.final_result.depth}</span>
+              <span className="badge">Confidence: {result.final_result.confidence}</span>
+              <span className="badge">Level: {result.final_result.confidence_detail?.level ?? "-"}</span>
+            </p>
           </div>
 
+          <div className="card">
+            <h2>Structured Profiles</h2>
+            <pre>
+              {JSON.stringify(
+                {
+                  season_profile: result.facts.season_profile,
+                  temperature_profile: result.facts.temperature_profile,
+                  moisture_profile: result.facts.moisture_profile,
+                  soil_profile: result.facts.soil_profile,
+                  source_profile: result.facts.source_profile,
+                  medicine_need_profile: result.facts.medicine_need_profile,
+                },
+                null,
+                2,
+              )}
+            </pre>
+          </div>
+
+          <div className="card">
+            <h2>Formal Final Engine Result</h2>
+            <pre>{JSON.stringify(result.final_engine_result, null, 2)}</pre>
+          </div>
+
+          <div className="card">
+            <h2>Loaded YAML Rules</h2>
+            <pre>{JSON.stringify(result.loaded_rules, null, 2)}</pre>
+          </div>
           <div className="card">
             <h2>Fact JSON</h2>
             <pre>{JSON.stringify(result.facts, null, 2)}</pre>
