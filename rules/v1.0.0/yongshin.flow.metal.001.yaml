@@ -1,8 +1,8 @@
 id: yongshin.flow.metal.001
-title: 유통 개통형 용신 후보 — 庚
+title: 유통 개통형 용신 후보 — 庚 조건부
 layer: L2_PROPOSAL
 target: yongshin_candidate
-priority: 60
+priority: 40
 enabled: true
 version: 1.0.0
 status: approved
@@ -11,18 +11,20 @@ when:
   all:
     - fact.flow.blocked == true
     - fact.binding.BindingStrength >= 2
+    - fact.water.is_waterlogged != true
 
 then:
   propose:
-    proposal_id: prop_yongshin_001
+    proposal_id: prop_yongshin_metal_opening_001
     candidate_type: yongshin
-    value: 庚
-    score_delta: 2.0
-    reason: "유통 개통형 약의 실행 상징으로 庚을 용신 후보로 제안합니다."
+    value: 庚金
+    score_delta: 1.5
+    reason: "유통 차단이 있으나 침수형 수습 과다 구조가 아닐 때, 庚金은 절단·개통의 조건부 용신 후보가 됩니다."
     confidence_signal: medium
+    action: opening_cutting
 
 explain:
-  ko: "막힌 흐름을 절단·개통하는 상징으로 庚을 후보화합니다."
+  ko: "침수형이면 庚金을 주용신으로 세우지 않고, 비침수형 유통 차단에서만 조건부 후보화합니다."
 
 evidence_query:
-  tags: [용신, 庚, 금, 유통]
+  tags: [용신, 庚, 금, 유통, 조건부]
