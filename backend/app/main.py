@@ -5,10 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.calendar.service import calculate_chart
 from app.core.fact_builder.service import build_fact
+from app.core.rule_dsl.loader import summarize_rules
 from app.core.rule_runner.service import execute_rule_runner
 from app.schemas import BirthInput, RuleRunnerRequest
 
-app = FastAPI(title="Saju Engine", version="0.3.0")
+app = FastAPI(title="Saju Engine", version="0.4.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,16 +24,22 @@ app.add_middleware(
 def root():
     return {
         "service": "sajuengine",
-        "version": "0.3.0",
+        "version": "0.4.0",
         "docs": "/docs",
         "health": "/api/health",
         "sample": "/api/v1/rule-runner/sample",
+        "rules": "/api/v1/rules",
     }
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "sajuengine", "version": "0.3.0"}
+    return {"status": "ok", "service": "sajuengine", "version": "0.4.0"}
+
+
+@app.get("/api/v1/rules")
+def rules(version: str = "v1.0.0"):
+    return {"rule_version": version, "rules": summarize_rules(version)}
 
 
 @app.post("/api/v1/charts/calculate")
