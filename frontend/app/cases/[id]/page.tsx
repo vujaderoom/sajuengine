@@ -18,10 +18,29 @@ type CaseDetail = {
   raw_yaml: string;
 };
 
+type CaseRunResult = {
+  id: string;
+  title: string;
+  status: string;
+  path: string;
+  passed: boolean;
+  checks: Array<{
+    path: string;
+    resolved_path: string;
+    expected: unknown;
+    actual: unknown;
+    passed: boolean;
+  }>;
+  actual_result: unknown;
+};
+
 export default function CaseDetailPage({ params }: { params: { id: string } }) {
   const [item, setItem] = useState<CaseDetail | null>(null);
+  const [runResult, setRunResult] = useState<CaseRunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [runLoading, setRunLoading] = useState(false);
 
   async function loadCase() {
     setLoading(true);
@@ -42,6 +61,25 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
     }
   }
 
+  async function runCase() {
+    setRunLoading(true);
+    setRunError(null);
+    try {
+      const res = await fetch(`/api/case-detail/${encodeURIComponent(params.id)}/run`, {
+        cache: "no-store",
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.detail ?? json?.message ?? `API error: ${res.status}`);
+      }
+      setRunResult(json);
+    } catch (err) {
+      setRunError(err instanceof Error ? err.message : "unknown error");
+    } finally {
+      setRunLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadCase();
   }, [params.id]);
@@ -54,13 +92,46 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
           <Link href="/cases">← Case Ledger</Link>{" | "}
           <Link href="/regressions">Regression Runner</Link>
         </p>
-        <button onClick={loadCase}>{loading ? "불러오는 중..." : "Case 새로고침"}</button>
+        <button onClick={loadCase}>{loading ? "불러오는 중..." : "Case 새로고침"}</button>{" "}
+        <button onClick={runCase}>{runLoading ? "검증 중..." : "이 케이스 실행/검증"}</button>
       </div>
 
       {error && (
         <div className="card">
           <h2>Error</h2>
           <p style={{ color: "#fca5a5" }}>{error}</p>
+        </div>
+      )}
+
+      {runError && (
+        <div className="card">
+          <h2>Run Error</h2>
+          <p style={{ color: "#fca5a5" }}>{runError}</p>
+        </div>
+      )}
+
+      {runResult && (
+        <div className="card">
+          <h2>Single Case Run</h2>
+          <p>
+            <span className="badge">passed: {String(runResult.passed)}</span>
+            <span className="badge">checks: {runResult.checks.length}</span>
+          </p>
+          <h3>Checks</h3>
+          {runResult.checks.map((check) => (
+            <div className="card" key={check.path}>
+              <p>
+                <strong>{check.path}</strong>
+              </p>
+              <p>
+                <span className="badge">passed: {String(check.passed)}</span>
+                <span className="badge">resolved: {check.resolved_path}</span>
+              </p>
+              <pre>{JSON.stringify({ expected: check.expected, actual: check.actual }, null, 2)}</pre>
+            </div>
+          ))}
+          <h3>Actual Result</h3>
+          <pre>{JSON.stringify(runResult.actual_result, null, 2)}</pre>
         </div>
       )}
 
