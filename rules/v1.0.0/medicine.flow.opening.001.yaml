@@ -6,6 +6,8 @@ priority: 70
 enabled: true
 version: 1.0.0
 status: approved
+created_by: system
+approved_by: reviewer
 
 when:
   all:
@@ -21,8 +23,18 @@ then:
     reason: "흐름이 막힌 구조를 여는 약 후보입니다."
     confidence_signal: strong
 
+score:
+  base: 2.0
+  max_contribution: 3.0
+
+counter_rules: []
+
 explain:
   ko: "흐름이 닫혀 있고 결속이 강하면 개통형 약 후보를 제안합니다."
 
 evidence_query:
   tags: [약, 유통, 개통]
+
+tests:
+  positive_cases: [GC-001]
+  negative_cases: []
