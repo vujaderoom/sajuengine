@@ -1,0 +1,28 @@
+id: yongshin.flow.metal.001
+title: 유통 개통형 용신 후보 — 庚
+layer: L2_PROPOSAL
+target: yongshin_candidate
+priority: 60
+enabled: true
+version: 1.0.0
+status: approved
+
+when:
+  all:
+    - fact.flow.blocked == true
+    - fact.binding.BindingStrength >= 2
+
+then:
+  propose:
+    proposal_id: prop_yongshin_001
+    candidate_type: yongshin
+    value: 庚
+    score_delta: 2.0
+    reason: "유통 개통형 약의 실행 상징으로 庚을 용신 후보로 제안합니다."
+    confidence_signal: medium
+
+explain:
+  ko: "막힌 흐름을 절단·개통하는 상징으로 庚을 후보화합니다."
+
+evidence_query:
+  tags: [용신, 庚, 금, 유통]
