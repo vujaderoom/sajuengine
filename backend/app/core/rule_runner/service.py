@@ -22,6 +22,9 @@ def _proposal_from_rule(rule: dict) -> dict | None:
         "source_rule": rule.get("id"),
         "reason": propose.get("reason", ""),
         "confidence_signal": propose.get("confidence_signal", "medium"),
+        "symbols": propose.get("symbols", []),
+        "action": propose.get("action"),
+        "rule_priority": rule.get("priority", 0),
         "evidence_query": rule.get("evidence_query", {"tags": []}),
     }
 
@@ -45,29 +48,39 @@ def _apply_counter_rules(rule: dict, proposal: dict, context: dict) -> list[dict
     return results
 
 
+def _best_proposal(proposals: list[dict], candidate_type: str) -> dict | None:
+    filtered = [p for p in proposals if p.get("candidate_type") == candidate_type]
+    if not filtered:
+        return None
+    return sorted(
+        filtered,
+        key=lambda p: (p.get("score_delta", 0.0), p.get("rule_priority", 0)),
+        reverse=True,
+    )[0]
+
+
 def _finalize(proposals: list[dict]) -> dict:
-    core_disease = next(
-        (p["value"] for p in proposals if p.get("candidate_type") == "core_disease"),
-        "미정",
-    )
-    medicine = next(
-        (p["value"] for p in proposals if p.get("candidate_type") == "medicine"),
-        "미정",
-    )
-    yongshin = next(
-        (p["value"] for p in proposals if p.get("candidate_type") == "yongshin"),
-        "미정",
-    )
+    core_disease_p = _best_proposal(proposals, "core_disease")
+    medicine_p = _best_proposal(proposals, "medicine")
+    yongshin_p = _best_proposal(proposals, "yongshin")
+
+    core_disease = core_disease_p["value"] if core_disease_p else "미정"
+    medicine = medicine_p["value"] if medicine_p else "미정"
+    yongshin = yongshin_p["value"] if yongshin_p else "미정"
+    yongshin_symbols = yongshin_p.get("symbols", []) if yongshin_p else []
 
     return {
         "core_disease": core_disease,
-        "derived_diseases": ["기후형 병"] if core_disease != "미정" else [],
-        "medicine": medicine,
+        "derived_diseases": ["수습 과다·침수형 병"] if yongshin == "火" else (["기후형 병"] if core_disease != "미정" else []),
+        "medicine": "말림·건조·증발" if yongshin == "火" else medicine,
         "yongshin": yongshin,
-        "secondary_yongshin": ["壬"] if yongshin != "미정" else [],
+        "yongshin_symbols": yongshin_symbols,
+        "secondary_yongshin": yongshin_symbols if yongshin_symbols else (["壬"] if yongshin != "미정" else []),
         "depth": 2 if core_disease != "미정" else 1,
         "stability_grade": "B" if core_disease != "미정" else "D",
-        "confidence": 0.86 if core_disease != "미정" else 0.3,
+        "confidence": 0.9 if yongshin == "火" else (0.86 if core_disease != "미정" else 0.3),
+        "selected_yongshin_source_rule": yongshin_p.get("source_rule") if yongshin_p else None,
+        "selected_yongshin_reason": yongshin_p.get("reason") if yongshin_p else None,
     }
 
 
