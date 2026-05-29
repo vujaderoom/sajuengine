@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from app.core.calendar.service import calculate_chart
 from app.core.fact_builder.service import build_fact
+from app.core.finalizer.service import finalize, to_legacy_final_result
 from app.core.rule_dsl.evaluator import evaluate_when
 from app.core.rule_dsl.loader import load_rules
 from app.schemas import RuleRunnerRequest
@@ -48,43 +49,8 @@ def _apply_counter_rules(rule: dict, proposal: dict, context: dict) -> list[dict
     return results
 
 
-def _best_proposal(proposals: list[dict], candidate_type: str) -> dict | None:
-    filtered = [p for p in proposals if p.get("candidate_type") == candidate_type]
-    if not filtered:
-        return None
-    return sorted(
-        filtered,
-        key=lambda p: (p.get("score_delta", 0.0), p.get("rule_priority", 0)),
-        reverse=True,
-    )[0]
-
-
-def _finalize(proposals: list[dict]) -> dict:
-    core_disease_p = _best_proposal(proposals, "core_disease")
-    medicine_p = _best_proposal(proposals, "medicine")
-    yongshin_p = _best_proposal(proposals, "yongshin")
-
-    core_disease = core_disease_p["value"] if core_disease_p else "미정"
-    medicine = medicine_p["value"] if medicine_p else "미정"
-    yongshin = yongshin_p["value"] if yongshin_p else "미정"
-    yongshin_symbols = yongshin_p.get("symbols", []) if yongshin_p else []
-
-    return {
-        "core_disease": core_disease,
-        "derived_diseases": ["수습 과다·침수형 병"] if yongshin == "火" else (["기후형 병"] if core_disease != "미정" else []),
-        "medicine": "말림·건조·증발" if yongshin == "火" else medicine,
-        "yongshin": yongshin,
-        "yongshin_symbols": yongshin_symbols,
-        "secondary_yongshin": yongshin_symbols if yongshin_symbols else (["壬"] if yongshin != "미정" else []),
-        "depth": 2 if core_disease != "미정" else 1,
-        "stability_grade": "B" if core_disease != "미정" else "D",
-        "confidence": 0.9 if yongshin == "火" else (0.86 if core_disease != "미정" else 0.3),
-        "selected_yongshin_source_rule": yongshin_p.get("source_rule") if yongshin_p else None,
-        "selected_yongshin_reason": yongshin_p.get("reason") if yongshin_p else None,
-    }
-
-
 def execute_rule_runner(request: RuleRunnerRequest) -> dict:
+    execution_id = "ex_" + uuid4().hex[:12]
     chart_payload = calculate_chart(request.birth)
     fact = build_fact(chart_payload)
     context = {"birth": request.birth.model_dump(), "chart": chart_payload["chart"], "fact": fact}
@@ -147,13 +113,14 @@ def execute_rule_runner(request: RuleRunnerRequest) -> dict:
                 }
             )
 
-    final_result = _finalize(proposals)
+    final_engine_result = finalize(proposals, fact)
+    final_result = to_legacy_final_result(final_engine_result)
     decision_trace.append(
         {"type": "FINALIZED", "stage": "FINALIZER", "output_json": final_result}
     )
 
     return {
-        "execution_id": "ex_" + uuid4().hex[:12],
+        "execution_id": execution_id,
         "chart_id": "chart_" + uuid4().hex[:12],
         "rule_version": request.rule_version,
         "birth": request.birth.model_dump(),
@@ -172,6 +139,7 @@ def execute_rule_runner(request: RuleRunnerRequest) -> dict:
         ],
         "proposals": proposals,
         "counter_rules_applied": counter_rules_applied,
+        "final_engine_result": final_engine_result.model_dump(),
         "final_result": final_result,
         "decision_trace": decision_trace,
     }
