@@ -1,0 +1,36 @@
+id: GC-001
+title: 己亥일주 巳月 침수형 火 용신 샘플
+status: approved
+version: 1.0.0
+
+birth:
+  name: GC-001
+  sex: male
+  birth_datetime: "1991-05-29T16:36:00"
+  calendar_type: solar
+  timezone: Asia/Seoul
+  location: Seoul
+
+expected:
+  chart:
+    year: 辛未
+    month: 癸巳
+    day: 己亥
+    hour: 壬申
+  facts:
+    water:
+      is_waterlogged: true
+      needs_drying: true
+      ren_on_shen_changsheng: true
+    medicine_need:
+      preferred_element: 火
+      primary_action: drying_evaporation
+  final_result:
+    yongshin: 火
+    yongshin_symbols: [巳火, 午火, 丙火, 丁火]
+    medicine: 말림·건조·증발
+    selected_yongshin_source_rule: yongshin.fire.drying.001
+
+notes:
+  - 巳月의 따뜻한 계절에 癸水·壬水·亥水·申金 수원이 이어지는 여름비 침수형 물상
+  - 火는 온도 회복이 아니라 말림·건조·증발로 작동
