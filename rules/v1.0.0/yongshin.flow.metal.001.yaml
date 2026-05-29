@@ -6,6 +6,8 @@ priority: 40
 enabled: true
 version: 1.0.0
 status: approved
+created_by: system
+approved_by: reviewer
 
 when:
   all:
@@ -23,8 +25,18 @@ then:
     confidence_signal: medium
     action: opening_cutting
 
+score:
+  base: 1.5
+  max_contribution: 2.0
+
+counter_rules: []
+
 explain:
   ko: "침수형이면 庚金을 주용신으로 세우지 않고, 비침수형 유통 차단에서만 조건부 후보화합니다."
 
 evidence_query:
   tags: [용신, 庚, 금, 유통, 조건부]
+
+tests:
+  positive_cases: []
+  negative_cases: [GC-001]
