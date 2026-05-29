@@ -6,10 +6,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.calendar.service import calculate_chart
 from app.core.fact_builder.service import build_fact
 from app.core.rule_dsl.loader import detail_rule, summarize_rules
+from app.core.rule_dsl.simulator import simulate_rule
 from app.core.rule_runner.service import execute_rule_runner
 from app.schemas import BirthInput, RuleRunnerRequest
 
-app = FastAPI(title="Saju Engine", version="0.5.0")
+app = FastAPI(title="Saju Engine", version="0.6.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,7 +25,7 @@ app.add_middleware(
 def root():
     return {
         "service": "sajuengine",
-        "version": "0.5.0",
+        "version": "0.6.0",
         "docs": "/docs",
         "health": "/api/health",
         "sample": "/api/v1/rule-runner/sample",
@@ -34,7 +35,7 @@ def root():
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "sajuengine", "version": "0.5.0"}
+    return {"status": "ok", "service": "sajuengine", "version": "0.6.0"}
 
 
 @app.get("/api/v1/rules")
@@ -48,6 +49,14 @@ def rule_detail(rule_id: str, version: str = "v1.0.0"):
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
     return rule
+
+
+@app.post("/api/v1/rules/{rule_id}/simulate")
+def rule_simulate(rule_id: str, birth: BirthInput | None = None, version: str = "v1.0.0"):
+    result = simulate_rule(rule_id, birth, version)
+    if not result:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return result
 
 
 @app.post("/api/v1/charts/calculate")
