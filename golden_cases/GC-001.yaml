@@ -1,7 +1,7 @@
 id: GC-001
 title: 己亥일주 巳月 침수형 火 용신 샘플
 status: approved
-version: 1.0.0
+version: 1.1.0
 
 birth:
   name: GC-001
@@ -10,6 +10,32 @@ birth:
   calendar_type: solar
   timezone: Asia/Seoul
   location: Seoul
+
+interpretation:
+  image_logic:
+    - 己土는 논밭·습토의 물상으로 본다.
+    - 巳月이라 계절 자체가 춥지는 않다.
+    - 癸水는 비, 壬水는 큰 물줄기 또는 공급수로 본다.
+    - 壬申은 壬水가 申金 위에 앉아 장생 수원을 얻은 구조다.
+    - 日支 亥水가 있어 물 공급이 안정적으로 이어진다.
+    - 따라서 문제는 한랭이 아니라 따뜻한 여름비로 논이 잠기는 침수형이다.
+  disease_logic:
+    core: 기후형 병
+    subtype: 수습 과다·침수형
+    reason: 巳月 己土에 癸·壬·亥·申 수원이 이어져 습이 과해진다.
+  medicine_logic:
+    type: 기후 복원형
+    action: 말림·건조·증발
+    reason: 火는 온도 회복이 아니라 물을 말리고 증발시키는 작용이다.
+  yongshin_logic:
+    primary: 火
+    symbols: [巳火, 午火, 丙火, 丁火]
+    excluded:
+      - value: 庚金
+        reason: 庚金은 개통에는 도움이 될 수 있으나 침수형에서는 주용신이 아니라 조건부 보조 후보이다.
+  linked_rules:
+    - yongshin.fire.drying.001
+    - yongshin.flow.metal.001
 
 expected:
   chart:
