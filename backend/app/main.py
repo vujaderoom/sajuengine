@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.calendar.service import calculate_chart
 from app.core.cases.loader import get_case, summarize_cases
 from app.core.fact_builder.service import build_fact
+from app.core.governance.service import governance_dashboard
 from app.core.llm.renderer import render_report
 from app.core.llm.verifier import verify_output
 from app.core.regression.runner import run_case_by_id, run_regressions
@@ -30,7 +31,7 @@ class RenderRequest(BaseModel):
     user_question: str = ""
 
 
-app = FastAPI(title="Saju Engine", version="0.10.0")
+app = FastAPI(title="Saju Engine", version="0.11.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,20 +46,26 @@ app.add_middleware(
 def root():
     return {
         "service": "sajuengine",
-        "version": "0.10.0",
+        "version": "0.11.0",
         "docs": "/docs",
         "health": "/api/health",
         "sample": "/api/v1/rule-runner/sample",
         "rules": "/api/v1/rules",
         "cases": "/api/v1/cases",
         "regressions": "/api/v1/regressions/run",
+        "governance": "/api/v1/governance",
         "report_preview": "/api/v1/reports/preview",
     }
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "sajuengine", "version": "0.10.0"}
+    return {"status": "ok", "service": "sajuengine", "version": "0.11.0"}
+
+
+@app.get("/api/v1/governance")
+def governance(version: str = "v1.0.0"):
+    return governance_dashboard(version)
 
 
 @app.get("/api/v1/cases")
