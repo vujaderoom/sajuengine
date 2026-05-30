@@ -90,12 +90,7 @@ def structure_natural_logic(request: NaturalLogicRequest) -> dict[str, Any]:
 
     excluded_candidates = []
     if _has_any(text, ["경금", "庚"] ) and _has_any(text, ["아니", "보조", "조건부", "탈락"]):
-        excluded_candidates.append(
-            {
-                "value": "庚金",
-                "reason": "입력 논리상 주용신이 아니라 조건부 보조 후보로 설명됨",
-            }
-        )
+        excluded_candidates.append({"value": "庚金", "reason": "입력 논리상 주용신이 아니라 조건부 보조 후보로 설명됨"})
 
     authoring = CaseAuthoringRequest(
         case_id=request.case_id,
@@ -117,11 +112,7 @@ def structure_natural_logic(request: NaturalLogicRequest) -> dict[str, Any]:
     return {
         "structured_authoring": authoring.model_dump(),
         "confidence": "scaffold",
-        "extraction_notes": [
-            "현재는 규칙 기반 구조화 scaffold입니다.",
-            "외부 LLM 또는 내부 LLM을 붙이면 이 함수만 교체할 수 있습니다.",
-            "저장 전 disease/yongshin/medicine 필드는 반드시 검토하세요.",
-        ],
+        "extraction_notes": ["현재는 규칙 기반 구조화 scaffold입니다.", "외부 LLM 또는 내부 LLM을 붙이면 이 함수만 교체할 수 있습니다.", "저장 전 disease/yongshin/medicine 필드는 반드시 검토하세요."],
         "preview": preview,
     }
 
@@ -141,31 +132,53 @@ def _rule_improvement_candidates(engine_result: dict[str, Any], request: CaseAut
     final = engine_result.get("final_result", {})
     candidates: list[dict[str, Any]] = []
     if request.yongshin_primary and final.get("yongshin") != request.yongshin_primary:
-        candidates.append(
-            {
-                "type": "yongshin_mismatch",
-                "expected": request.yongshin_primary,
-                "actual": final.get("yongshin"),
-                "suggestion": "새 yongshin proposal rule 또는 counter rule 보강 필요",
-            }
-        )
+        candidates.append({"type": "yongshin_mismatch", "expected": request.yongshin_primary, "actual": final.get("yongshin"), "suggestion": "새 yongshin proposal rule 또는 counter rule 보강 필요"})
     if request.medicine_action and request.medicine_action not in str(final.get("medicine")):
-        candidates.append(
-            {
-                "type": "medicine_mismatch",
-                "expected_action": request.medicine_action,
-                "actual": final.get("medicine"),
-                "suggestion": "medicine proposal 또는 finalizer mapping 보강 필요",
-            }
-        )
+        candidates.append({"type": "medicine_mismatch", "expected_action": request.medicine_action, "actual": final.get("medicine"), "suggestion": "medicine proposal 또는 finalizer mapping 보강 필요"})
     if not candidates:
-        candidates.append(
-            {
-                "type": "no_major_gap",
-                "suggestion": "현재 룰로 초안 케이스의 핵심 기대값을 대체로 설명 가능",
-            }
-        )
+        candidates.append({"type": "no_major_gap", "suggestion": "현재 룰로 초안 케이스의 핵심 기대값을 대체로 설명 가능"})
     return candidates
+
+
+def _rule_candidate_from_case(request: CaseAuthoringRequest, chart: dict[str, str], engine_result: dict[str, Any]) -> dict[str, Any]:
+    safe_case_id = request.case_id.lower().replace("_", "-")
+    disease_subtype = request.disease_subtype or "미정"
+    medicine_action = request.medicine_action or engine_result.get("final_result", {}).get("medicine", "")
+    yongshin_primary = request.yongshin_primary or engine_result.get("final_result", {}).get("yongshin", "")
+    symbols = request.yongshin_symbols or engine_result.get("final_result", {}).get("yongshin_symbols", [])
+    conditions = []
+    if chart.get("day", "")[0]:
+        conditions.append({"path": "chart.day", "op": "contains", "value": chart["day"][0]})
+    if chart.get("month", "")[1]:
+        conditions.append({"path": "chart.month", "op": "contains", "value": chart["month"][1]})
+    if disease_subtype != "미정":
+        conditions.append({"path": "fact.disease_profile.disease_image", "op": "contains", "value": disease_subtype.split("·")[0]})
+
+    candidate = {
+        "id": f"case_rule_candidate_{safe_case_id}",
+        "title": f"{request.title} 기반 룰 후보",
+        "status": "candidate_review_required",
+        "layer": "YONGSHIN_PROPOSAL",
+        "target": "selected_yongshin",
+        "priority": 50,
+        "enabled": False,
+        "source_case_id": request.case_id,
+        "when": {"all": conditions or [{"path": "chart.day", "op": "exists"}]},
+        "then": {
+            "propose": {
+                "proposal_id": f"prop_{safe_case_id}_yongshin",
+                "candidate_type": "yongshin",
+                "value": yongshin_primary,
+                "symbols": symbols,
+                "action": medicine_action,
+                "score_delta": 1.0,
+                "confidence_signal": "case_candidate",
+                "reason": "케이스 물상 논리에서 자동 생성된 룰 후보입니다. 승인 전 조건을 반드시 검토하세요.",
+            }
+        },
+        "evidence_query": {"case_id": request.case_id, "tags": ["case-derived", disease_subtype, yongshin_primary]},
+    }
+    return candidate
 
 
 def generate_case_preview(request: CaseAuthoringRequest) -> dict[str, Any]:
@@ -178,6 +191,7 @@ def generate_case_preview(request: CaseAuthoringRequest) -> dict[str, Any]:
     yongshin_symbols = request.yongshin_symbols or engine_result.get("final_result", {}).get("yongshin_symbols", [])
     yongshin_primary = request.yongshin_primary or engine_result.get("final_result", {}).get("yongshin", "")
     medicine_action = request.medicine_action or engine_result.get("final_result", {}).get("medicine", "")
+    rule_candidate = _rule_candidate_from_case(request, chart, engine_result)
 
     case_yaml = {
         "id": request.case_id,
@@ -188,42 +202,26 @@ def generate_case_preview(request: CaseAuthoringRequest) -> dict[str, Any]:
         "birth": request.birth.model_dump(),
         "interpretation": {
             "image_logic": image_logic,
-            "disease_logic": {
-                "core": request.disease_core,
-                "subtype": request.disease_subtype,
-                "reason": request.disease_reason,
-            },
-            "medicine_logic": {
-                "type": request.medicine_type,
-                "action": medicine_action,
-                "reason": request.medicine_reason,
-            },
-            "yongshin_logic": {
-                "primary": yongshin_primary,
-                "symbols": yongshin_symbols,
-                "excluded": request.excluded_candidates,
-            },
+            "disease_logic": {"core": request.disease_core, "subtype": request.disease_subtype, "reason": request.disease_reason},
+            "medicine_logic": {"type": request.medicine_type, "action": medicine_action, "reason": request.medicine_reason},
+            "yongshin_logic": {"primary": yongshin_primary, "symbols": yongshin_symbols, "excluded": request.excluded_candidates},
             "linked_rules": linked_rules,
         },
-        "expected": {
-            "chart": chart,
-            "final_result": {
-                "yongshin": yongshin_primary,
-                "yongshin_symbols": yongshin_symbols,
-                "medicine": medicine_action,
-                "selected_yongshin_source_rule": engine_result.get("final_result", {}).get("selected_yongshin_source_rule"),
-            },
-        },
+        "expected": {"chart": chart, "final_result": {"yongshin": yongshin_primary, "yongshin_symbols": yongshin_symbols, "medicine": medicine_action, "selected_yongshin_source_rule": engine_result.get("final_result", {}).get("selected_yongshin_source_rule")}},
+        "rule_candidate": rule_candidate,
         "notes": request.notes or image_logic[:2],
     }
 
     raw_yaml = yaml.safe_dump(case_yaml, allow_unicode=True, sort_keys=False)
+    rule_candidate_yaml = yaml.safe_dump(rule_candidate, allow_unicode=True, sort_keys=False)
     return {
         "case_id": request.case_id,
         "chart_result": chart_payload,
         "engine_result": engine_result,
         "linked_rules": linked_rules,
         "rule_improvement_candidates": _rule_improvement_candidates(engine_result, request),
+        "rule_candidate": rule_candidate,
+        "rule_candidate_yaml": rule_candidate_yaml,
         "case_yaml": case_yaml,
         "raw_yaml": raw_yaml,
         "save_instruction": f"저장 시 golden_cases/{request.case_id}.yaml 파일로 추가",
@@ -234,23 +232,11 @@ def save_case(request: CaseSaveRequest) -> dict[str, Any]:
     preview = generate_case_preview(request.authoring)
     path = _golden_case_path(request.authoring.case_id)
     if path.exists() and not request.overwrite:
-        return {
-            "saved": False,
-            "reason": "case_already_exists",
-            "path": str(path.relative_to(_repo_root())),
-            "preview": preview,
-        }
+        return {"saved": False, "reason": "case_already_exists", "path": str(path.relative_to(_repo_root())), "preview": preview}
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(preview["raw_yaml"], encoding="utf-8")
 
     single_case_result = run_case_by_id(request.authoring.case_id)
     regression_result = run_regressions() if request.run_regression_after_save else None
-    return {
-        "saved": True,
-        "path": str(path.relative_to(_repo_root())),
-        "case_id": request.authoring.case_id,
-        "single_case_result": single_case_result,
-        "regression_result": regression_result,
-        "preview": preview,
-    }
+    return {"saved": True, "path": str(path.relative_to(_repo_root())), "case_id": request.authoring.case_id, "single_case_result": single_case_result, "regression_result": regression_result, "preview": preview}
