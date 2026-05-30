@@ -4,6 +4,16 @@ import { useState } from "react";
 
 type LoadedRule = { id: string; title: string; layer: string; target: string; priority: number; enabled: boolean };
 
+type CalendarRelation = {
+  kind: string;
+  kind_ko: string;
+  name: string;
+  name_ko: string;
+  positions: Array<{ position: string; label: string; pillar: string; stem?: string; branch?: string }>;
+  items: string[];
+  element_ko?: string;
+};
+
 type ManseryukPillar = {
   key: "hour" | "day" | "month" | "year";
   label: string;
@@ -18,6 +28,7 @@ type ManseryukPillar = {
   twelve_shinsal_year_base_ko: string;
   xunkong_ko: string[];
   relative_xunkong: { display_ko: string; is_void: boolean; base_label: string; void_branches_ko: string[] };
+  relations?: CalendarRelation[];
 };
 
 type EngineResponse = {
@@ -27,7 +38,8 @@ type EngineResponse = {
   birth: Record<string, unknown>;
   chart_result: {
     chart: { year: string; month: string; day: string; hour: string };
-    manseryuk_view?: { pillars: ManseryukPillar[] };
+    relations?: { items: CalendarRelation[]; summary: Record<string, unknown>; by_kind: Record<string, CalendarRelation[]> };
+    manseryuk_view?: { pillars: ManseryukPillar[]; relations?: { items: CalendarRelation[]; summary: Record<string, unknown>; by_kind: Record<string, CalendarRelation[]> } };
     calendar_meta?: Record<string, any>;
     engine_notes: string[];
   };
@@ -47,6 +59,18 @@ function charClass(char: string, kind: "stem" | "branch") {
   if (["丙", "丁", "巳", "午"].includes(char)) return `${kind}-fire`;
   if (["甲", "乙", "寅", "卯"].includes(char)) return `${kind}-wood`;
   return "";
+}
+
+function relationBadgeClass(kind: string) {
+  if (["branch_clash", "branch_harm", "branch_break", "wonjin", "gwimun", "self_penalty"].includes(kind)) return "bad";
+  if (["branch_liuhe", "stem_combo", "trine_full", "directional_full"].includes(kind)) return "good";
+  return "warn";
+}
+
+function relationText(relation: CalendarRelation) {
+  const positionText = relation.positions?.map((p) => p.label).join("·") ?? "";
+  const element = relation.element_ko ? ` → ${relation.element_ko}` : "";
+  return `${relation.name_ko}${element} (${positionText})`;
 }
 
 export default function DashboardPage() {
@@ -79,14 +103,15 @@ export default function DashboardPage() {
   const facts = result?.facts;
   const cr = result?.chart_result;
   const board = cr?.manseryuk_view?.pillars ?? [];
+  const relations = cr?.relations?.items ?? cr?.manseryuk_view?.relations?.items ?? [];
 
   return (
     <main>
       <section className="page-hero">
         <div className="card">
           <h1 className="hero-title">만세력 보드</h1>
-          <p className="hero-subtitle">시주·일주·월주·년주를 만세력 앱처럼 한 화면에 정렬합니다. 공망은 요청 기준에 따라 일주는 년공망, 나머지는 일공망 여부를 표시합니다.</p>
-          <div className="summary-strip"><span className="badge info">Calendar v1.3</span><span className="badge info">오행 색상 보정</span><span className="badge info">금=흰색</span><span className="badge info">목=초록</span></div>
+          <p className="hero-subtitle">시주·일주·월주·년주를 만세력 앱처럼 한 화면에 정렬합니다. 합·충·형·파·해·원진·귀문 관계까지 하단에 표시합니다.</p>
+          <div className="summary-strip"><span className="badge info">Calendar v1.4</span><span className="badge info">합충형파</span><span className="badge info">관계 엔진</span><span className="badge info">Fact Builder 연동</span></div>
         </div>
         <div className="card compact"><h2>빠른 실행</h2><p className="muted">기본값은 GC-001 검증 샘플입니다.</p><button onClick={runEngine}>{loading ? "실행 중..." : "Rule Runner 실행"}</button>{error && <p style={{ color: "#b91c1c" }}>Error: {error}</p>}</div>
       </section>
@@ -113,11 +138,21 @@ export default function DashboardPage() {
             </div>
           </section>
 
+          <section className="card">
+            <h2>합·충·형·파 관계</h2>
+            {relations.length ? (
+              <div className="summary-strip">
+                {relations.map((relation, index) => <span className={`badge ${relationBadgeClass(relation.kind)}`} key={`${relation.kind}-${relation.name}-${index}`}>{relation.kind_ko}: {relationText(relation)}</span>)}
+              </div>
+            ) : <p className="muted">감지된 관계가 없습니다.</p>}
+            <details><summary>관계 JSON</summary><pre>{JSON.stringify(cr.relations ?? cr.manseryuk_view?.relations, null, 2)}</pre></details>
+          </section>
+
           <section className="grid-3"><div className="metric"><div className="metric-label">핵심 병</div><div className="metric-value">{result.final_result.core_disease}</div></div><div className="metric"><div className="metric-label">약</div><div className="metric-value">{result.final_result.medicine}</div></div><div className="metric"><div className="metric-label">용신</div><div className="metric-value">{result.final_result.yongshin}</div></div></section>
 
           <section className="card"><h2>판단 요약</h2><p><span className="badge good">Depth {result.final_result.depth}</span><span className="badge good">Confidence {result.final_result.confidence}</span><span className="badge info">{result.final_result.confidence_detail?.level ?? "level -"}</span><span className="badge">세부 후보: {result.final_result.yongshin_symbols?.join(", ") || "-"}</span></p><div className="grid"><div className="card compact"><h3>핵심 물상</h3><p>{facts?.water?.image || facts?.moisture_profile?.image || "아직 핵심 물상 설명이 없습니다."}</p></div><div className="card compact"><h3>작동 방식</h3><p><span className="badge">온도: {facts?.temperature_profile?.state ?? "-"}</span><span className="badge">습도: {facts?.moisture_profile?.state ?? "-"}</span><span className="badge">약 작용: {facts?.medicine_need_profile?.primary_action ?? "-"}</span></p></div></div></section>
 
-          <section className="card"><h2>상세 데이터</h2><details><summary>Manseryuk View JSON</summary><pre>{JSON.stringify(cr.manseryuk_view, null, 2)}</pre></details><details><summary>Calendar Result JSON</summary><pre>{JSON.stringify(result.chart_result, null, 2)}</pre></details><details><summary>Structured Profiles</summary><pre>{JSON.stringify({ season_profile: facts?.season_profile, temperature_profile: facts?.temperature_profile, moisture_profile: facts?.moisture_profile, soil_profile: facts?.soil_profile, source_profile: facts?.source_profile, medicine_need_profile: facts?.medicine_need_profile }, null, 2)}</pre></details><details><summary>Formal Final Engine Result</summary><pre>{JSON.stringify(result.final_engine_result, null, 2)}</pre></details><details><summary>Rules / Proposals / Counter Rules</summary><pre>{JSON.stringify({ loaded_rules: result.loaded_rules, proposals: result.proposals, counter_rules: result.counter_rules_applied }, null, 2)}</pre></details><details><summary>Decision Trace</summary><pre>{JSON.stringify(result.decision_trace, null, 2)}</pre></details></section>
+          <section className="card"><h2>상세 데이터</h2><details><summary>Manseryuk View JSON</summary><pre>{JSON.stringify(cr.manseryuk_view, null, 2)}</pre></details><details><summary>Calendar Result JSON</summary><pre>{JSON.stringify(result.chart_result, null, 2)}</pre></details><details><summary>Structured Profiles</summary><pre>{JSON.stringify({ season_profile: facts?.season_profile, temperature_profile: facts?.temperature_profile, moisture_profile: facts?.moisture_profile, soil_profile: facts?.soil_profile, source_profile: facts?.source_profile, medicine_need_profile: facts?.medicine_need_profile, relations: facts?.relations }, null, 2)}</pre></details><details><summary>Formal Final Engine Result</summary><pre>{JSON.stringify(result.final_engine_result, null, 2)}</pre></details><details><summary>Rules / Proposals / Counter Rules</summary><pre>{JSON.stringify({ loaded_rules: result.loaded_rules, proposals: result.proposals, counter_rules: result.counter_rules_applied }, null, 2)}</pre></details><details><summary>Decision Trace</summary><pre>{JSON.stringify(result.decision_trace, null, 2)}</pre></details></section>
         </>
       )}
     </main>
