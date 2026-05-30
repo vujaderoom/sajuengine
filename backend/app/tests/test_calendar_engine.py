@@ -2,8 +2,8 @@ from app.core.calendar.service import calculate_chart
 from app.schemas import BirthInput
 
 
-def get_result(dt_text: str):
-    return calculate_chart(BirthInput(birth_datetime=dt_text))
+def get_result(dt_text: str, sex: str = "male"):
+    return calculate_chart(BirthInput(birth_datetime=dt_text, sex=sex))
 
 
 def get_chart(dt_text: str):
@@ -61,6 +61,22 @@ def test_calendar_relations_for_sample():
     assert result["relations"]["summary"]["has_clash"] is True
     assert result["relations"]["summary"]["has_liuhe"] is True
     assert result["manseryuk_view"]["relations"]["summary"]["has_harm"] is True
+
+
+def test_daewoon_for_sample_male_yin_year():
+    result = get_result("1991-05-29T16:36:00", sex="male")
+    daewoon = result["daewoon"]
+    assert daewoon["direction"]["direction"] == "backward"
+    assert daewoon["base_month_pillar"] == "癸巳"
+    assert daewoon["cycles"][0]["pillar"] == "壬辰"
+    assert len(daewoon["cycles"]) == 10
+    assert daewoon["start"]["start_age_decimal"] > 0
+
+
+def test_solar_term_table_scaffold_metadata():
+    meta = get_meta("1991-05-29T16:36:00")
+    assert meta["solar_term_mode"] in ["fixed_korean_civil_baseline", "solar_term_table"]
+    assert "solar_terms" in meta
 
 
 def test_precise_solar_term_hook_metadata():
