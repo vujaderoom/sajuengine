@@ -73,6 +73,17 @@ def test_daewoon_for_sample_male_yin_year():
     assert daewoon["start"]["start_age_decimal"] > 0
 
 
+def test_sewoon_and_manseryuk_rows():
+    result = get_result("1991-05-29T16:36:00", sex="male")
+    sewoon = result["sewoon"]
+    assert len(sewoon["years"]) == 11
+    assert sewoon["current"] is not None
+    assert "relations_with_origin" in sewoon["years"][0]
+    rows = result["manseryuk_view"]["rows"]
+    assert rows[0]["label"] == "천간 십성"
+    assert any(row["key"] == "relative_xunkong" for row in rows)
+
+
 def test_solar_term_table_scaffold_metadata():
     meta = get_meta("1991-05-29T16:36:00")
     assert meta["solar_term_mode"] in ["fixed_korean_civil_baseline", "solar_term_table"]
