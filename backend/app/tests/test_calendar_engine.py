@@ -84,12 +84,28 @@ def test_sewoon_and_manseryuk_rows():
     assert any(row["key"] == "relative_xunkong" for row in rows)
 
 
+def test_fortune_overlay_for_sample():
+    chart_result = get_result("1991-05-29T16:36:00", sex="male")
+    from app.core.fact_builder.service import build_fact
+    from app.core.fortune.analysis import analyze_fortune
+
+    facts = build_fact(chart_result)
+    fortune = analyze_fortune(chart_result, facts)
+    overlay = fortune["overlay_result"]
+    assert overlay["model_version"] == "fortune_overlay_v1.0.0"
+    assert "combined_overlay" in overlay["current"]
+    assert "scores" in overlay["current"]["combined_overlay"]
+    assert "yongshin_score" in overlay["current"]["combined_overlay"]["scores"]
+    assert "gishin_score" in overlay["current"]["combined_overlay"]["scores"]
+    assert isinstance(overlay["current"]["combined_overlay"]["relations"], list)
+
+
 def test_solar_term_table_status_metadata():
     meta = get_meta("1991-05-29T16:36:00")
-    assert meta["solar_term_mode"] in ["fixed_korean_civil_baseline", "solar_term_table"]
+    assert meta["solar_term_mode"] in ["fixed_korean_civil_baseline", "solar_term_table", "skyfield_runtime"]
     assert "solar_terms" in meta
     assert "solar_term_table_status" in meta
-    assert meta["solar_term_table_status"]["mode"] in ["fixed_korean_civil_baseline", "solar_term_table"]
+    assert meta["solar_term_table_status"]["mode"] in ["fixed_korean_civil_baseline", "solar_term_table", "skyfield_runtime"]
 
 
 def test_precise_solar_term_hook_metadata():
