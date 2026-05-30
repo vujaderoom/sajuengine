@@ -15,6 +15,12 @@ type EngineResponse = {
     hidden_stems?: Record<string, string[]>;
     twelve_unseong?: Record<string, string>;
     twelve_shinsal?: Record<string, Record<string, string>>;
+    display_ko?: {
+      ten_gods?: Record<string, string>;
+      hidden_stems?: Record<string, string[]>;
+      twelve_unseong?: Record<string, string>;
+      twelve_shinsal?: Record<string, Record<string, string>>;
+    };
     calendar_meta?: Record<string, any>;
     engine_notes: string[];
   };
@@ -28,6 +34,7 @@ type EngineResponse = {
 };
 
 const labels = { year: "년주", month: "월주", day: "일주", hour: "시주" } as const;
+const baseLabels = { year_base: "년지 기준", day_base: "일지 기준", month_base: "월지 기준" } as const;
 
 export default function DashboardPage() {
   const [name, setName] = useState("sample");
@@ -59,6 +66,7 @@ export default function DashboardPage() {
   const chart = result?.chart_result?.chart;
   const facts = result?.facts;
   const cr = result?.chart_result;
+  const ko = cr?.display_ko;
 
   return (
     <main>
@@ -66,7 +74,7 @@ export default function DashboardPage() {
         <div className="card">
           <h1 className="hero-title">판단 엔진 대시보드</h1>
           <p className="hero-subtitle">생년월일시를 넣으면 원국, 십성, 지장간, 십이운성, 십이신살, 병·약·용신 판단을 확인합니다.</p>
-          <div className="summary-strip"><span className="badge info">Calendar v1</span><span className="badge info">十星</span><span className="badge info">十二運星</span><span className="badge info">十二神殺</span></div>
+          <div className="summary-strip"><span className="badge info">Calendar v1.2</span><span className="badge info">십성</span><span className="badge info">십이운성</span><span className="badge info">십이신살</span></div>
         </div>
         <div className="card compact"><h2>빠른 실행</h2><p className="muted">기본값은 GC-001 검증 샘플입니다.</p><button onClick={runEngine}>{loading ? "실행 중..." : "Rule Runner 실행"}</button>{error && <p style={{ color: "#b91c1c" }}>Error: {error}</p>}</div>
       </section>
@@ -77,8 +85,8 @@ export default function DashboardPage() {
         <>
           <section className="card">
             <h2>만세력 원국</h2>
-            <div className="pillar-row">{(["year", "month", "day", "hour"] as const).map((key) => <div className="pillar" key={key}><small>{labels[key]}</small><strong>{chart[key]}</strong><p className="muted">{cr.ten_gods?.[key] ?? "-"}</p></div>)}</div>
-            <p className="summary-strip"><span className="badge info">절입: {String(cr.calendar_meta?.month_boundary_ko ?? cr.calendar_meta?.month_boundary ?? "-")}</span><span className="badge info">월지: {String(cr.calendar_meta?.month_branch ?? "-")}</span><span className="badge info">태양년: {String(cr.calendar_meta?.solar_year_for_pillar ?? "-")}</span></p>
+            <div className="pillar-row">{(["year", "month", "day", "hour"] as const).map((key) => <div className="pillar" key={key}><small>{labels[key]}</small><strong>{chart[key]}</strong><p className="muted">{ko?.ten_gods?.[key] ?? cr.ten_gods?.[key] ?? "-"}</p></div>)}</div>
+            <p className="summary-strip"><span className="badge info">절입: {String(cr.calendar_meta?.month_boundary_ko ?? cr.calendar_meta?.month_boundary ?? "-")}</span><span className="badge info">월지: {String(cr.calendar_meta?.month_branch ?? "-")}</span><span className="badge info">태양년: {String(cr.calendar_meta?.solar_year_for_pillar ?? "-")}</span><span className="badge warn">절기모드: {String(cr.calendar_meta?.solar_term_mode ?? "-")}</span></p>
           </section>
 
           <section className="grid-3"><div className="metric"><div className="metric-label">핵심 병</div><div className="metric-value">{result.final_result.core_disease}</div></div><div className="metric"><div className="metric-label">약</div><div className="metric-value">{result.final_result.medicine}</div></div><div className="metric"><div className="metric-label">용신</div><div className="metric-value">{result.final_result.yongshin}</div></div></section>
@@ -86,8 +94,8 @@ export default function DashboardPage() {
           <section className="card">
             <h2>보조 명리표</h2>
             <div className="grid">
-              <div className="card compact"><h3>십이운성 / 지장간</h3><div className="grid">{(["year", "month", "day", "hour"] as const).map((key) => <div className="metric" key={key}><div className="metric-label">{labels[key]}</div><p><span className="badge">운성 {cr.twelve_unseong?.[key] ?? "-"}</span></p><p><span className="badge">지장간 {(cr.hidden_stems?.[key] ?? []).join(" · ") || "-"}</span></p></div>)}</div></div>
-              <div className="card compact"><h3>십이신살</h3><p className="muted">기본은 년지 기준이며, 일지/월지 기준도 함께 산출합니다.</p>{(["year_base", "day_base", "month_base"] as const).map((base) => <details key={base} open={base === "year_base"}><summary>{base}</summary><p>{(["year", "month", "day", "hour"] as const).map((key) => <span className="badge" key={`${base}-${key}`}>{labels[key]} {cr.twelve_shinsal?.[base]?.[key] ?? "-"}</span>)}</p></details>)}</div>
+              <div className="card compact"><h3>십이운성 / 지장간</h3><div className="grid">{(["year", "month", "day", "hour"] as const).map((key) => <div className="metric" key={key}><div className="metric-label">{labels[key]}</div><p><span className="badge">운성 {ko?.twelve_unseong?.[key] ?? cr.twelve_unseong?.[key] ?? "-"}</span></p><p><span className="badge">지장간 {(ko?.hidden_stems?.[key] ?? cr.hidden_stems?.[key] ?? []).join(" · ") || "-"}</span></p></div>)}</div></div>
+              <div className="card compact"><h3>십이신살</h3><p className="muted">기본은 년지 기준이며, 일지/월지 기준도 함께 산출합니다.</p>{(["year_base", "day_base", "month_base"] as const).map((base) => <details key={base} open={base === "year_base"}><summary>{baseLabels[base]}</summary><p>{(["year", "month", "day", "hour"] as const).map((key) => <span className="badge" key={`${base}-${key}`}>{labels[key]} {ko?.twelve_shinsal?.[base]?.[key] ?? cr.twelve_shinsal?.[base]?.[key] ?? "-"}</span>)}</p></details>)}</div>
             </div>
           </section>
 
