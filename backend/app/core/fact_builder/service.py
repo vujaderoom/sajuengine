@@ -42,6 +42,7 @@ def _count_elements(stems: list[str], branches: list[str]) -> dict[str, int]:
 
 def build_fact(chart_payload: dict) -> dict:
     chart = chart_payload["chart"]
+    relations = chart_payload.get("relations", {"items": [], "summary": {}, "by_kind": {}})
     year_pillar = chart["year"]
     month_pillar = chart["month"]
     day_pillar = chart["day"]
@@ -68,6 +69,11 @@ def build_fact(chart_payload: dict) -> dict:
     ren_on_shen_changsheng = hour_pillar == "壬申"
     si_month = month_branch == "巳"
     warm_season = month_branch in ["巳", "午", "未"]
+
+    relation_names = [item.get("name", "") for item in relations.get("items", [])]
+    has_si_hai_clash = "巳亥沖" in relation_names
+    has_si_shen_liuhe = "巳申合" in relation_names
+    has_shen_hai_harm = "申亥害" in relation_names
 
     water_supply_score = 0
     if ren_present:
@@ -132,14 +138,19 @@ def build_fact(chart_payload: dict) -> dict:
         "hidden_stems": hidden_stems,
     }
     flow_profile = {
-        "blocked": True,
-        "support_path": "weak_or_broken",
+        "blocked": relations.get("summary", {}).get("has_clash", False),
+        "support_path": "weak_or_broken" if relations.get("summary", {}).get("has_clash", False) else "unknown",
         "main_issue": "water_accumulation" if is_waterlogged else "flow_blocked",
+        "relations": relations,
     }
+    relation_binding_names = [item.get("name") for item in relations.get("items", []) if item.get("kind") in ["branch_clash", "branch_liuhe", "branch_harm", "branch_break", "wonjin", "gwimun", "trine_half", "trine_full", "directional_half", "directional_full"]]
     binding_profile = {
-        "CI": 2,
-        "BindingStrength": 3,
-        "bindings": ["巳亥沖", "巳申合"] if si_month else [],
+        "CI": 2 + len([name for name in relation_binding_names if name in ["巳亥沖", "巳申合", "申亥害"]]),
+        "BindingStrength": max(1, len(relation_binding_names)),
+        "bindings": relation_binding_names,
+        "has_si_hai_clash": has_si_hai_clash,
+        "has_si_shen_liuhe": has_si_shen_liuhe,
+        "has_shen_hai_harm": has_shen_hai_harm,
     }
     storage_profile = {
         "root_support": root_profile["root_support"],
@@ -165,6 +176,7 @@ def build_fact(chart_payload: dict) -> dict:
         "branches": branches,
         "elements": element_counts,
         "hidden_stems": hidden_stems,
+        "relations": relations,
         "raw": {
             "HeatScore": heat_score,
             "MoistureScore": moisture_score,
@@ -220,8 +232,9 @@ def build_fact(chart_payload: dict) -> dict:
             "extension": {},
         },
         "notes": [
-            "fact_builder v2.0.0",
+            "fact_builder v2.1.0",
             "raw score는 내부 룰용이며 display index는 UI 표시 전용",
+            "relations는 calendar relation engine에서 계산된 합충형파해원진귀문을 참조",
             "巳月의 기본 온기는 인정하되, 火는 온도 회복이 아니라 말림·건조·증발로 작동",
         ],
     }
