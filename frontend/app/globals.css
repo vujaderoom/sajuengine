@@ -264,6 +264,7 @@ main {
   background: #fbbf24;
 }
 
+.m-big-char.stem-fire,
 .m-big-char.branch-fire {
   background: #ef4444;
   color: #fff;
@@ -272,13 +273,24 @@ main {
 .m-big-char.branch-earth,
 .m-big-char.stem-earth {
   background: #fbbf24;
+  color: #111827;
 }
 
 .m-big-char.stem-water,
-.m-big-char.branch-water,
+.m-big-char.branch-water {
+  background: #262626;
+  color: #fff;
+}
+
 .m-big-char.stem-metal,
 .m-big-char.branch-metal {
-  background: #262626;
+  background: #ffffff;
+  color: #111827;
+}
+
+.m-big-char.stem-wood,
+.m-big-char.branch-wood {
+  background: #22c55e;
   color: #fff;
 }
 
