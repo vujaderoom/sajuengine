@@ -10,6 +10,7 @@ from app.core.calendar.manseryuk_view import build_manseryuk_view
 from app.core.calendar.month_pillar import month_pillar
 from app.core.calendar.precise_solar_terms import precise_mode_summary
 from app.core.calendar.relations import analyze_relations
+from app.core.calendar.sewoon import build_sewoon
 from app.core.calendar.solar_terms import month_boundary_for_datetime, solar_term_mode_for_year, solar_terms_for_year, solar_year_for_pillar
 from app.core.calendar.ten_gods import ten_gods_for_chart
 from app.core.calendar.time_pillar import hour_pillar
@@ -44,8 +45,9 @@ def calculate_chart(birth: BirthInput) -> dict:
         "twelve_shinsal": twelve_shinsal_multi_base_for_chart(chart),
         "relations": analyze_relations(chart),
         "daewoon": build_daewoon(dt, birth.sex, chart),
+        "sewoon": build_sewoon(dt, chart),
         "calendar_meta": {
-            "calendar_engine_version": "v1.5.0",
+            "calendar_engine_version": "v1.6.0",
             "solar_year_for_pillar": solar_year_for_pillar(dt),
             "month_boundary": month_boundary.name,
             "month_boundary_ko": month_boundary.ko,
@@ -57,7 +59,7 @@ def calculate_chart(birth: BirthInput) -> dict:
             "solar_terms": solar_terms_for_year(dt.year),
         },
         "engine_notes": [
-            "calendar engine v1.5.0",
+            "calendar engine v1.6.0",
             "년주는 입춘 기준",
             "월주는 12절입 기준 table lookup 또는 fixed baseline",
             "일주는 1991-05-29 己亥 anchor 기반 60갑자 계산",
@@ -68,6 +70,7 @@ def calculate_chart(birth: BirthInput) -> dict:
             "십이신살은 year_base/day_base/month_base를 함께 산출하되 기본 해석은 year_base 우선",
             "relations는 합·충·형·파·해·원진·귀문·삼합·방합 normalized list",
             "daewoon은 성별+연간 음양 기준 순역행 및 3일=1년 scaffold",
+            "sewoon은 현재연도 전후 11년 기본 생성",
             "solar_term_table은 data/solar_terms_1900_2100.json이 있으면 자동 우선 사용",
             "manseryuk_view는 UI/LLM extraction용 4주 보드 normalized view",
         ],
