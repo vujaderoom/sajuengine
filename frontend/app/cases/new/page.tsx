@@ -14,12 +14,32 @@ type PreviewResponse = {
   save_instruction: string;
 };
 
+type StructureResponse = {
+  structured_authoring: Record<string, unknown>;
+  confidence: string;
+  extraction_notes: string[];
+  preview: PreviewResponse;
+};
+
+type SaveResponse = {
+  saved: boolean;
+  reason?: string;
+  path?: string;
+  case_id?: string;
+  single_case_result?: unknown;
+  regression_result?: unknown;
+  preview?: PreviewResponse;
+};
+
 export default function NewCasePage() {
   const [caseId, setCaseId] = useState("GC-DRAFT-001");
   const [title, setTitle] = useState("새 해석 케이스 초안");
   const [name, setName] = useState("draft");
   const [sex, setSex] = useState("unknown");
   const [birthDatetime, setBirthDatetime] = useState("1991-05-29T16:36:00");
+  const [naturalLogicText, setNaturalLogicText] = useState(
+    "己土는 巳月에 태어났고 癸水·壬申·亥水가 있어 따뜻한 비가 논을 잠기게 한다. 문제는 한랭이 아니라 수습 과다·침수형이다. 火로 말림·건조·증발해야 하므로 용신은 巳火, 午火, 丙火, 丁火로 본다. 庚金은 주용신이 아니라 조건부 보조 후보로 본다.",
+  );
   const [imageLogicText, setImageLogicText] = useState(
     "己土는 논밭·습토의 물상으로 본다.\n巳月이라 계절 자체가 춥지는 않다.\n癸水·壬水·亥水·申金 수원이 이어진다.",
   );
@@ -33,47 +53,98 @@ export default function NewCasePage() {
   const [yongshinSymbolsText, setYongshinSymbolsText] = useState("巳火, 午火, 丙火, 丁火");
   const [notesText, setNotesText] = useState("해석자 검토 필요");
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const [structured, setStructured] = useState<StructureResponse | null>(null);
+  const [saveResult, setSaveResult] = useState<SaveResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [structuring, setStructuring] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  async function generatePreview() {
-    setLoading(true);
+  const authoringPayload = {
+    case_id: caseId,
+    title,
+    status: "draft",
+    version: "1.0.0",
+    birth: {
+      name,
+      sex,
+      birth_datetime: birthDatetime,
+      calendar_type: "solar",
+      timezone: "Asia/Seoul",
+      location: "Seoul",
+    },
+    image_logic_text: imageLogicText,
+    disease_core: diseaseCore,
+    disease_subtype: diseaseSubtype,
+    disease_reason: diseaseReason,
+    medicine_type: medicineType,
+    medicine_action: medicineAction,
+    medicine_reason: medicineReason,
+    yongshin_primary: yongshinPrimary,
+    yongshin_symbols: yongshinSymbolsText
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+    excluded_candidates: [],
+    notes: notesText
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean),
+  };
+
+  function applyStructuredAuthoring(payload: Record<string, unknown>) {
+    setImageLogicText(String(payload.image_logic_text ?? imageLogicText));
+    setDiseaseCore(String(payload.disease_core ?? diseaseCore));
+    setDiseaseSubtype(String(payload.disease_subtype ?? diseaseSubtype));
+    setDiseaseReason(String(payload.disease_reason ?? diseaseReason));
+    setMedicineType(String(payload.medicine_type ?? medicineType));
+    setMedicineAction(String(payload.medicine_action ?? medicineAction));
+    setMedicineReason(String(payload.medicine_reason ?? medicineReason));
+    setYongshinPrimary(String(payload.yongshin_primary ?? yongshinPrimary));
+    const symbols = Array.isArray(payload.yongshin_symbols) ? payload.yongshin_symbols.join(", ") : yongshinSymbolsText;
+    setYongshinSymbolsText(symbols);
+    const notes = Array.isArray(payload.notes) ? payload.notes.join("\n") : notesText;
+    setNotesText(notes);
+  }
+
+  async function structureNaturalLogic() {
+    setStructuring(true);
     setError(null);
+    setSaveResult(null);
     try {
-      const res = await fetch("/api/cases/authoring/preview", {
+      const res = await fetch("/api/cases/authoring/structure-natural-logic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           case_id: caseId,
           title,
-          status: "draft",
-          version: "1.0.0",
-          birth: {
-            name,
-            sex,
-            birth_datetime: birthDatetime,
-            calendar_type: "solar",
-            timezone: "Asia/Seoul",
-            location: "Seoul",
-          },
-          image_logic_text: imageLogicText,
-          disease_core: diseaseCore,
-          disease_subtype: diseaseSubtype,
-          disease_reason: diseaseReason,
-          medicine_type: medicineType,
-          medicine_action: medicineAction,
-          medicine_reason: medicineReason,
-          yongshin_primary: yongshinPrimary,
-          yongshin_symbols: yongshinSymbolsText
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean),
-          excluded_candidates: [],
-          notes: notesText
-            .split("\n")
-            .map((item) => item.trim())
-            .filter(Boolean),
+          birth: authoringPayload.birth,
+          natural_logic_text: naturalLogicText,
         }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.message ?? `API error: ${res.status}`);
+      }
+      setStructured(json);
+      setPreview(json.preview);
+      applyStructuredAuthoring(json.structured_authoring);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "unknown error");
+    } finally {
+      setStructuring(false);
+    }
+  }
+
+  async function generatePreview() {
+    setLoading(true);
+    setError(null);
+    setSaveResult(null);
+    try {
+      const res = await fetch("/api/cases/authoring/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(authoringPayload),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -84,6 +155,32 @@ export default function NewCasePage() {
       setError(err instanceof Error ? err.message : "unknown error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function saveCase() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/cases/authoring/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          authoring: authoringPayload,
+          overwrite: false,
+          run_regression_after_save: true,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.message ?? `API error: ${res.status}`);
+      }
+      setSaveResult(json);
+      if (json.preview) setPreview(json.preview);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "unknown error");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -127,6 +224,23 @@ export default function NewCasePage() {
       </div>
 
       <div className="card">
+        <h2>Natural Logic Structuring</h2>
+        <p>자연어 물상 설명을 입력하면 구조화 초안을 생성합니다. 현재는 규칙 기반 scaffold입니다.</p>
+        <label>
+          Natural Logic Text
+          <textarea value={naturalLogicText} onChange={(event) => setNaturalLogicText(event.target.value)} rows={8} />
+        </label>
+        <button onClick={structureNaturalLogic}>{structuring ? "구조화 중..." : "물상 논리 자동 구조화"}</button>
+      </div>
+
+      {structured && (
+        <div className="card">
+          <h2>Structured Extraction Notes</h2>
+          <pre>{JSON.stringify({ confidence: structured.confidence, extraction_notes: structured.extraction_notes }, null, 2)}</pre>
+        </div>
+      )}
+
+      <div className="card">
         <h2>Interpretation Logic</h2>
         <label>
           Image Logic
@@ -168,13 +282,26 @@ export default function NewCasePage() {
           Notes
           <textarea value={notesText} onChange={(event) => setNotesText(event.target.value)} rows={4} />
         </label>
-        <button onClick={generatePreview}>{loading ? "생성 중..." : "Case YAML Preview 생성"}</button>
+        <button onClick={generatePreview}>{loading ? "생성 중..." : "Case YAML Preview 생성"}</button>{" "}
+        <button onClick={saveCase}>{saving ? "저장 중..." : "Save Case + Regression"}</button>
       </div>
 
       {error && (
         <div className="card">
           <h2>Error</h2>
           <p style={{ color: "#fca5a5" }}>{error}</p>
+        </div>
+      )}
+
+      {saveResult && (
+        <div className="card">
+          <h2>Save Result</h2>
+          <p>
+            <span className="badge">saved: {String(saveResult.saved)}</span>
+            <span className="badge">path: {saveResult.path ?? "-"}</span>
+            <span className="badge">reason: {saveResult.reason ?? "-"}</span>
+          </p>
+          <pre>{JSON.stringify({ single_case_result: saveResult.single_case_result, regression_result: saveResult.regression_result }, null, 2)}</pre>
         </div>
       )}
 
