@@ -12,10 +12,12 @@ type ManseryukPillar = {
   branch: string;
   stem_ten_god_ko: string;
   branch_ten_god_ko: string;
-  hidden_stems: Array<{ stem_ko: string; ten_god_ko: string }>;
+  hidden_stems: Array<{ stem: string; stem_ko: string; ten_god_ko: string }>;
   twelve_unseong_ko: string;
+  pillar_stem_twelve_unseong_ko: string;
   twelve_shinsal_year_base_ko: string;
   xunkong_ko: string[];
+  relative_xunkong: { display_ko: string; is_void: boolean; base_label: string; void_branches_ko: string[] };
 };
 
 type EngineResponse = {
@@ -82,8 +84,8 @@ export default function DashboardPage() {
       <section className="page-hero">
         <div className="card">
           <h1 className="hero-title">만세력 보드</h1>
-          <p className="hero-subtitle">시주·일주·월주·년주를 만세력 앱처럼 한 화면에 정렬합니다. 보조 명리표는 이 보드 안에 통합했습니다.</p>
-          <div className="summary-strip"><span className="badge info">Calendar v1.3</span><span className="badge info">지장간</span><span className="badge info">십이운성</span><span className="badge info">십이신살</span><span className="badge info">공망</span></div>
+          <p className="hero-subtitle">시주·일주·월주·년주를 만세력 앱처럼 한 화면에 정렬합니다. 공망은 요청 기준에 따라 일주는 년공망, 나머지는 일공망 여부를 표시합니다.</p>
+          <div className="summary-strip"><span className="badge info">Calendar v1.3</span><span className="badge info">지장간 한자</span><span className="badge info">일간 운성</span><span className="badge info">각 간 운성</span><span className="badge info">상대 공망</span></div>
         </div>
         <div className="card compact"><h2>빠른 실행</h2><p className="muted">기본값은 GC-001 검증 샘플입니다.</p><button onClick={runEngine}>{loading ? "실행 중..." : "Rule Runner 실행"}</button>{error && <p style={{ color: "#b91c1c" }}>Error: {error}</p>}</div>
       </section>
@@ -101,9 +103,10 @@ export default function DashboardPage() {
                 {board.map((p) => <div className="m-cell m-subheader" key={`tg-${p.key}`}>{p.stem_ten_god_ko}</div>)}
                 {board.map((p) => <div className="m-cell m-stem-branch" key={`stem-${p.key}`}><div className="m-ten-god">{p.stem_ten_god_ko}</div><div className={`m-big-char ${p.key === "day" ? "stem-day" : ""} ${charClass(p.stem, "stem")}`}>{p.stem}</div></div>)}
                 {board.map((p) => <div className="m-cell m-stem-branch" key={`branch-${p.key}`}><div className="m-ten-god">{p.branch_ten_god_ko}</div><div className={`m-big-char ${charClass(p.branch, "branch")}`}>{p.branch}</div></div>)}
-                {board.map((p) => <div className="m-cell m-hidden" key={`hs-${p.key}`}>{p.hidden_stems.map((h) => `${h.stem_ko}${h.ten_god_ko}`).join("\n")}</div>)}
-                {board.map((p) => <div className="m-cell m-small" key={`un-${p.key}`}>{p.twelve_unseong_ko}</div>)}
-                {board.map((p) => <div className="m-cell m-small" key={`xk-${p.key}`}>{p.xunkong_ko.join(" · ")}</div>)}
+                {board.map((p) => <div className="m-cell m-hidden" key={`hs-${p.key}`}>{p.hidden_stems.map((h) => `${h.stem}${h.ten_god_ko}`).join("\n")}</div>)}
+                {board.map((p) => <div className="m-cell m-small" key={`un-day-${p.key}`}>{p.twelve_unseong_ko}</div>)}
+                {board.map((p) => <div className="m-cell m-small" key={`un-pillar-${p.key}`}>{p.pillar_stem_twelve_unseong_ko}</div>)}
+                {board.map((p) => <div className="m-cell m-small" key={`xk-${p.key}`}><span className={`badge ${p.relative_xunkong?.is_void ? "bad" : "info"}`}>{p.relative_xunkong?.display_ko ?? "-"}</span><br /><span className="muted">{p.relative_xunkong?.base_label ?? ""} {p.relative_xunkong?.void_branches_ko?.join("·") ?? ""}</span></div>)}
                 {board.map((p) => <div className="m-cell m-yellow m-small" key={`ss-${p.key}`}>{p.twelve_shinsal_year_base_ko}</div>)}
               </div>
             </div>
