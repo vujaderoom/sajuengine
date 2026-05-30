@@ -84,10 +84,12 @@ def test_sewoon_and_manseryuk_rows():
     assert any(row["key"] == "relative_xunkong" for row in rows)
 
 
-def test_solar_term_table_scaffold_metadata():
+def test_solar_term_table_status_metadata():
     meta = get_meta("1991-05-29T16:36:00")
     assert meta["solar_term_mode"] in ["fixed_korean_civil_baseline", "solar_term_table"]
     assert "solar_terms" in meta
+    assert "solar_term_table_status" in meta
+    assert meta["solar_term_table_status"]["mode"] in ["fixed_korean_civil_baseline", "solar_term_table"]
 
 
 def test_precise_solar_term_hook_metadata():
