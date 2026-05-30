@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.core.fortune.overlay import analyze_fortune_overlays
+
 ELEMENT_BY_STEM = {
     "甲": "木", "乙": "木", "丙": "火", "丁": "火", "戊": "土", "己": "土", "庚": "金", "辛": "金", "壬": "水", "癸": "水",
 }
@@ -82,8 +84,10 @@ def analyze_fortune(chart_result: dict, facts: dict) -> dict:
         current_grade = "mixed"
         current_grade_ko = "현재 운은 길흉이 섞인 혼합 흐름"
 
+    overlay_result = analyze_fortune_overlays(chart_result, facts)
+
     return {
-        "model_version": "fortune_analysis_v1.0.0",
+        "model_version": "fortune_analysis_v1.1.0",
         "current": {
             "combined_score": combined_score,
             "grade": current_grade,
@@ -91,6 +95,7 @@ def analyze_fortune(chart_result: dict, facts: dict) -> dict:
             "daewoon": current_daewoon,
             "sewoon": current_sewoon,
         },
+        "overlay_result": overlay_result,
         "daewoon": daewoon_items,
         "sewoon": sewoon_items,
         "principles": [
@@ -99,5 +104,6 @@ def analyze_fortune(chart_result: dict, facts: dict) -> dict:
             "金 운은 개통성과 수원 공급성을 함께 평가",
             "木 운은 토 제어와 젖은 토 부담을 함께 평가",
             "土 운은 제방·저장과 정체를 함께 평가",
+            "overlay_result는 원국+운이 새로 만드는 관계 자극을 별도 평가",
         ],
     }
