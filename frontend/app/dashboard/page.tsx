@@ -26,6 +26,15 @@ type DaewoonCycle = {
   is_current: boolean;
 };
 
+type SewoonYear = {
+  year: number;
+  pillar: string;
+  stem: string;
+  branch: string;
+  is_current: boolean;
+  relations_with_origin?: { items: CalendarRelation[]; summary: Record<string, unknown> };
+};
+
 type ManseryukPillar = {
   key: "hour" | "day" | "month" | "year";
   label: string;
@@ -59,7 +68,13 @@ type EngineResponse = {
       current?: DaewoonCycle | null;
       notes: string[];
     };
-    manseryuk_view?: { pillars: ManseryukPillar[]; relations?: { items: CalendarRelation[]; summary: Record<string, unknown>; by_kind: Record<string, CalendarRelation[]> } };
+    sewoon?: {
+      range: { start_year: number; end_year: number; span: number };
+      current?: SewoonYear | null;
+      years: SewoonYear[];
+      notes: string[];
+    };
+    manseryuk_view?: { pillars: ManseryukPillar[]; rows?: Array<{ key: string; label: string }>; relations?: { items: CalendarRelation[]; summary: Record<string, unknown>; by_kind: Record<string, CalendarRelation[]> } };
     calendar_meta?: Record<string, any>;
     engine_notes: string[];
   };
@@ -91,6 +106,10 @@ function relationText(relation: CalendarRelation) {
   const positionText = relation.positions?.map((p) => p.label).join("·") ?? "";
   const element = relation.element_ko ? ` → ${relation.element_ko}` : "";
   return `${relation.name_ko}${element} (${positionText})`;
+}
+
+function RowLabel({ children }: { children: string }) {
+  return <div className="m-cell m-row-label">{children}</div>;
 }
 
 export default function DashboardPage() {
@@ -125,14 +144,15 @@ export default function DashboardPage() {
   const board = cr?.manseryuk_view?.pillars ?? [];
   const relations = cr?.relations?.items ?? cr?.manseryuk_view?.relations?.items ?? [];
   const daewoon = cr?.daewoon;
+  const sewoon = cr?.sewoon;
 
   return (
     <main>
       <section className="page-hero">
         <div className="card">
           <h1 className="hero-title">만세력 보드</h1>
-          <p className="hero-subtitle">원국, 합충형파, 대운을 한 화면에서 확인합니다. 절기 시각 테이블 파일이 있으면 자동으로 table lookup을 우선 사용합니다.</p>
-          <div className="summary-strip"><span className="badge info">Calendar v1.5</span><span className="badge info">대운</span><span className="badge info">절기 테이블 scaffold</span><span className="badge info">관계 엔진</span></div>
+          <p className="hero-subtitle">원국, 합충형파, 대운, 세운을 한 화면에서 확인합니다. 행 라벨을 추가해 만세력 원판을 더 직관적으로 읽게 했습니다.</p>
+          <div className="summary-strip"><span className="badge info">Calendar v1.6</span><span className="badge info">세운</span><span className="badge info">행 라벨</span><span className="badge info">대운</span></div>
         </div>
         <div className="card compact"><h2>빠른 실행</h2><p className="muted">기본값은 GC-001 검증 샘플입니다.</p><button onClick={runEngine}>{loading ? "실행 중..." : "Rule Runner 실행"}</button>{error && <p style={{ color: "#b91c1c" }}>Error: {error}</p>}</div>
       </section>
@@ -144,16 +164,16 @@ export default function DashboardPage() {
           <section className="card">
             <h2>만세력 원판</h2>
             <p className="summary-strip"><span className="badge info">절입: {String(cr.calendar_meta?.month_boundary_ko ?? cr.calendar_meta?.month_boundary ?? "-")}</span><span className="badge info">월지: {String(cr.calendar_meta?.month_branch ?? "-")}</span><span className="badge info">태양년: {String(cr.calendar_meta?.solar_year_for_pillar ?? "-")}</span><span className="badge warn">절기모드: {String(cr.calendar_meta?.solar_term_mode ?? "-")}</span></p>
-            <div className="manseryuk-board"><div className="manseryuk-grid">
-              {board.map((p) => <div className="m-cell m-header" key={`h-${p.key}`}>{p.label}</div>)}
-              {board.map((p) => <div className="m-cell m-subheader" key={`tg-${p.key}`}>{p.stem_ten_god_ko}</div>)}
-              {board.map((p) => <div className="m-cell m-stem-branch" key={`stem-${p.key}`}><div className="m-ten-god">{p.stem_ten_god_ko}</div><div className={`m-big-char ${p.key === "day" ? "stem-day" : ""} ${charClass(p.stem, "stem")}`}>{p.stem}</div></div>)}
-              {board.map((p) => <div className="m-cell m-stem-branch" key={`branch-${p.key}`}><div className="m-ten-god">{p.branch_ten_god_ko}</div><div className={`m-big-char ${charClass(p.branch, "branch")}`}>{p.branch}</div></div>)}
-              {board.map((p) => <div className="m-cell m-hidden" key={`hs-${p.key}`}>{p.hidden_stems.map((h) => `${h.stem}${h.ten_god_ko}`).join("\n")}</div>)}
-              {board.map((p) => <div className="m-cell m-small" key={`un-day-${p.key}`}>{p.twelve_unseong_ko}</div>)}
-              {board.map((p) => <div className="m-cell m-small" key={`un-pillar-${p.key}`}>{p.pillar_stem_twelve_unseong_ko}</div>)}
-              {board.map((p) => <div className="m-cell m-small" key={`xk-${p.key}`}><span className={`badge ${p.relative_xunkong?.is_void ? "bad" : "info"}`}>{p.relative_xunkong?.display_ko ?? "-"}</span><br /><span className="muted">{p.relative_xunkong?.base_label ?? ""} {p.relative_xunkong?.void_branches_ko?.join("·") ?? ""}</span></div>)}
-              {board.map((p) => <div className="m-cell m-yellow m-small" key={`ss-${p.key}`}>{p.twelve_shinsal_year_base_ko}</div>)}
+            <div className="manseryuk-board"><div className="manseryuk-grid with-row-labels">
+              <RowLabel>구분</RowLabel>{board.map((p) => <div className="m-cell m-header" key={`h-${p.key}`}>{p.label}</div>)}
+              <RowLabel>천간 십성</RowLabel>{board.map((p) => <div className="m-cell m-subheader" key={`tg-${p.key}`}>{p.stem_ten_god_ko}</div>)}
+              <RowLabel>천간</RowLabel>{board.map((p) => <div className="m-cell m-stem-branch" key={`stem-${p.key}`}><div className="m-ten-god">{p.stem_ten_god_ko}</div><div className={`m-big-char ${p.key === "day" ? "stem-day" : ""} ${charClass(p.stem, "stem")}`}>{p.stem}</div></div>)}
+              <RowLabel>지지</RowLabel>{board.map((p) => <div className="m-cell m-stem-branch" key={`branch-${p.key}`}><div className="m-ten-god">{p.branch_ten_god_ko}</div><div className={`m-big-char ${charClass(p.branch, "branch")}`}>{p.branch}</div></div>)}
+              <RowLabel>지장간</RowLabel>{board.map((p) => <div className="m-cell m-hidden" key={`hs-${p.key}`}>{p.hidden_stems.map((h) => `${h.stem}${h.ten_god_ko}`).join("\n")}</div>)}
+              <RowLabel>십이운성<br />일간</RowLabel>{board.map((p) => <div className="m-cell m-small" key={`un-day-${p.key}`}>{p.twelve_unseong_ko}</div>)}
+              <RowLabel>십이운성<br />각 간</RowLabel>{board.map((p) => <div className="m-cell m-small" key={`un-pillar-${p.key}`}>{p.pillar_stem_twelve_unseong_ko}</div>)}
+              <RowLabel>공망</RowLabel>{board.map((p) => <div className="m-cell m-small" key={`xk-${p.key}`}><span className={`badge ${p.relative_xunkong?.is_void ? "bad" : "info"}`}>{p.relative_xunkong?.display_ko ?? "-"}</span><br /><span className="muted">{p.relative_xunkong?.base_label ?? ""} {p.relative_xunkong?.void_branches_ko?.join("·") ?? ""}</span></div>)}
+              <RowLabel>십이신살</RowLabel>{board.map((p) => <div className="m-cell m-yellow m-small" key={`ss-${p.key}`}>{p.twelve_shinsal_year_base_ko}</div>)}
             </div></div>
           </section>
 
@@ -169,6 +189,19 @@ export default function DashboardPage() {
                 {daewoon.cycles.map((cycle) => <div className="m-cell m-small" key={`dy-${cycle.index}`}>{cycle.year_start}~{cycle.year_end}</div>)}
               </div></div>
               <details><summary>대운 JSON</summary><pre>{JSON.stringify(daewoon, null, 2)}</pre></details>
+            </section>
+          )}
+
+          {sewoon && (
+            <section className="card">
+              <h2>세운</h2>
+              <p className="summary-strip"><span className="badge info">범위: {sewoon.range.start_year}~{sewoon.range.end_year}</span><span className="badge warn">현재: {sewoon.current?.year ?? "-"} {sewoon.current?.pillar ?? "-"}</span></p>
+              <div className="manseryuk-board"><div className="manseryuk-grid" style={{ gridTemplateColumns: `repeat(${sewoon.years.length}, minmax(92px, 1fr))` }}>
+                {sewoon.years.map((item) => <div className={`m-cell m-header ${item.is_current ? "m-yellow" : ""}`} key={`sy-${item.year}`}>{item.year}</div>)}
+                {sewoon.years.map((item) => <div className="m-cell m-stem-branch" key={`sp-${item.year}`}><div className={`m-big-char ${charClass(item.stem, "stem")}`}>{item.stem}</div><div className={`m-big-char ${charClass(item.branch, "branch")}`} style={{ marginTop: 8 }}>{item.branch}</div></div>)}
+                {sewoon.years.map((item) => <div className="m-cell m-small" key={`sr-${item.year}`}>{item.relations_with_origin?.items?.slice(0, 2).map((r) => r.name_ko).join(" · ") || "-"}</div>)}
+              </div></div>
+              <details><summary>세운 JSON</summary><pre>{JSON.stringify(sewoon, null, 2)}</pre></details>
             </section>
           )}
 
