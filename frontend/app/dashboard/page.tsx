@@ -44,7 +44,8 @@ function charClass(char: string, kind: "stem" | "branch") {
   if (["戊", "己", "辰", "戌", "丑", "未"].includes(char)) return `${kind}-earth`;
   if (["壬", "癸", "子", "亥"].includes(char)) return `${kind}-water`;
   if (["庚", "辛", "申", "酉"].includes(char)) return `${kind}-metal`;
-  if (["丙", "丁", "巳", "午"].includes(char)) return `branch-fire`;
+  if (["丙", "丁", "巳", "午"].includes(char)) return `${kind}-fire`;
+  if (["甲", "乙", "寅", "卯"].includes(char)) return `${kind}-wood`;
   return "";
 }
 
@@ -85,7 +86,7 @@ export default function DashboardPage() {
         <div className="card">
           <h1 className="hero-title">만세력 보드</h1>
           <p className="hero-subtitle">시주·일주·월주·년주를 만세력 앱처럼 한 화면에 정렬합니다. 공망은 요청 기준에 따라 일주는 년공망, 나머지는 일공망 여부를 표시합니다.</p>
-          <div className="summary-strip"><span className="badge info">Calendar v1.3</span><span className="badge info">지장간 한자</span><span className="badge info">일간 운성</span><span className="badge info">각 간 운성</span><span className="badge info">상대 공망</span></div>
+          <div className="summary-strip"><span className="badge info">Calendar v1.3</span><span className="badge info">오행 색상 보정</span><span className="badge info">금=흰색</span><span className="badge info">목=초록</span></div>
         </div>
         <div className="card compact"><h2>빠른 실행</h2><p className="muted">기본값은 GC-001 검증 샘플입니다.</p><button onClick={runEngine}>{loading ? "실행 중..." : "Rule Runner 실행"}</button>{error && <p style={{ color: "#b91c1c" }}>Error: {error}</p>}</div>
       </section>
