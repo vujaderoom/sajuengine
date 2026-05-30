@@ -8,6 +8,17 @@ from app.core.calendar.xunkong import xunkong_for_chart
 
 ORDER = ["hour", "day", "month", "year"]
 PILLAR_LABELS = {"year": "년주", "month": "월주", "day": "일주", "hour": "시주"}
+BOARD_ROWS = [
+    {"key": "stem_ten_god", "label": "천간 십성"},
+    {"key": "stem", "label": "천간"},
+    {"key": "branch_ten_god", "label": "지지 십성"},
+    {"key": "branch", "label": "지지"},
+    {"key": "hidden_stems", "label": "지장간"},
+    {"key": "twelve_unseong_day_stem", "label": "십이운성(일간)"},
+    {"key": "twelve_unseong_pillar_stem", "label": "십이운성(각 간)"},
+    {"key": "relative_xunkong", "label": "공망"},
+    {"key": "twelve_shinsal", "label": "십이신살"},
+]
 
 
 def _main_hidden_stem(hidden_stems: list[str]) -> str:
@@ -106,6 +117,7 @@ def build_manseryuk_view(chart_result: dict) -> dict:
 
     return {
         "order": ORDER,
+        "rows": BOARD_ROWS,
         "pillars": pillars,
         "relations": relations,
         "xunkong_by_pillar": xunkong,
