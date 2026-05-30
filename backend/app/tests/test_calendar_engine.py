@@ -52,6 +52,17 @@ def test_auxiliary_chart_tables_for_sample():
     assert result["twelve_shinsal"]["day_base"]["day"] == "地殺"
 
 
+def test_calendar_relations_for_sample():
+    result = get_result("1991-05-29T16:36:00")
+    relation_names = [item["name"] for item in result["relations"]["items"]]
+    assert "巳亥沖" in relation_names
+    assert "巳申合" in relation_names
+    assert "申亥害" in relation_names
+    assert result["relations"]["summary"]["has_clash"] is True
+    assert result["relations"]["summary"]["has_liuhe"] is True
+    assert result["manseryuk_view"]["relations"]["summary"]["has_harm"] is True
+
+
 def test_precise_solar_term_hook_metadata():
     meta = get_meta("1991-05-29T16:36:00")
     assert "precise_solar_terms" in meta
