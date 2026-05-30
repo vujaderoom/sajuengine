@@ -14,7 +14,14 @@ from app.core.calendar.relations import (
     STEM_COMBOS,
     TRINES,
 )
-from app.core.fortune.analysis import ELEMENT_BY_BRANCH, ELEMENT_BY_STEM, ELEMENT_KO
+
+ELEMENT_BY_STEM = {
+    "甲": "木", "乙": "木", "丙": "火", "丁": "火", "戊": "土", "己": "土", "庚": "金", "辛": "金", "壬": "水", "癸": "水",
+}
+ELEMENT_BY_BRANCH = {
+    "子": "水", "丑": "土", "寅": "木", "卯": "木", "辰": "土", "巳": "火", "午": "火", "未": "土", "申": "金", "酉": "金", "戌": "土", "亥": "水",
+}
+ELEMENT_KO = {"木": "목", "火": "화", "土": "토", "金": "금", "水": "수"}
 
 ORIGIN_ORDER = ["year", "month", "day", "hour"]
 ORIGIN_LABELS = {"year": "년주", "month": "월주", "day": "일주", "hour": "시주"}
@@ -37,17 +44,7 @@ def _luck_item(kind: str, pillar: str, extra: dict | None = None) -> dict[str, A
 
 def _relation(kind: str, kind_ko: str, name: str, name_ko: str, positions: list[dict], items: list[str], **extra: Any) -> dict[str, Any]:
     luck_positions = [p for p in positions if p.get("source") != "origin"]
-    return {
-        "kind": kind,
-        "kind_ko": kind_ko,
-        "name": name,
-        "name_ko": name_ko,
-        "positions": positions,
-        "items": items,
-        "luck_involved": bool(luck_positions),
-        "luck_positions": luck_positions,
-        **extra,
-    }
+    return {"kind": kind, "kind_ko": kind_ko, "name": name, "name_ko": name_ko, "positions": positions, "items": items, "luck_involved": bool(luck_positions), "luck_positions": luck_positions, **extra}
 
 
 def _pair_relations(items: list[dict]) -> list[dict]:
@@ -191,14 +188,7 @@ def analyze_overlay(origin_chart: dict[str, str], facts: dict, daewoon_item: dic
     y_score = element_stimulus["yongshin_score"] + relation_stimulus["yongshin_score"]
     g_score = element_stimulus["gishin_score"] + relation_stimulus["gishin_score"]
     grade = _grade(y_score, g_score)
-    return {
-        "luck_items": luck_items,
-        "relations": relations,
-        "element_stimulus": element_stimulus,
-        "relation_stimulus": relation_stimulus,
-        "scores": {"yongshin_score": y_score, "gishin_score": g_score, **grade},
-        "summary_ko": _summary_ko(grade["grade"], y_score, g_score, element_stimulus, relation_stimulus),
-    }
+    return {"luck_items": luck_items, "relations": relations, "element_stimulus": element_stimulus, "relation_stimulus": relation_stimulus, "scores": {"yongshin_score": y_score, "gishin_score": g_score, **grade}, "summary_ko": _summary_ko(grade["grade"], y_score, g_score, element_stimulus, relation_stimulus)}
 
 
 def _summary_ko(grade: str, y_score: int, g_score: int, element_stimulus: dict, relation_stimulus: dict) -> str:
@@ -219,24 +209,9 @@ def analyze_fortune_overlays(chart_result: dict, facts: dict) -> dict:
     current_daewoon = next((item for item in daewoon_items if item.get("is_current")), None)
     current_sewoon = next((item for item in sewoon_items if item.get("is_current")), None)
     return {
-        "model_version": "fortune_overlay_v1.0.0",
-        "current": {
-            "daewoon_overlay": analyze_overlay(chart, facts, daewoon_item=current_daewoon),
-            "sewoon_overlay": analyze_overlay(chart, facts, sewoon_item=current_sewoon),
-            "combined_overlay": analyze_overlay(chart, facts, daewoon_item=current_daewoon, sewoon_item=current_sewoon),
-        },
-        "daewoon": [
-            {"index": item.get("index"), "pillar": item.get("pillar"), "age_start": item.get("age_start"), "year_start": item.get("year_start"), "year_end": item.get("year_end"), "overlay": analyze_overlay(chart, facts, daewoon_item=item)}
-            for item in daewoon_items
-        ],
-        "sewoon": [
-            {"year": item.get("year"), "pillar": item.get("pillar"), "overlay": analyze_overlay(chart, facts, sewoon_item=item)}
-            for item in sewoon_items
-        ],
-        "rules": [
-            "원국+운의 신규 관계 중 운이 관여한 관계만 overlay 자극으로 본다.",
-            "火 관계/火 오행은 수습 과다 구조에서 말림·증발 작용으로 가점한다.",
-            "水 관계/水 오행은 수습 과다 구조에서 침수 리스크로 감점한다.",
-            "충·해·파·원진·귀문은 불안정 자극으로 별도 감점한다.",
-        ],
+        "model_version": "fortune_overlay_v1.0.1",
+        "current": {"daewoon_overlay": analyze_overlay(chart, facts, daewoon_item=current_daewoon), "sewoon_overlay": analyze_overlay(chart, facts, sewoon_item=current_sewoon), "combined_overlay": analyze_overlay(chart, facts, daewoon_item=current_daewoon, sewoon_item=current_sewoon)},
+        "daewoon": [{"index": item.get("index"), "pillar": item.get("pillar"), "age_start": item.get("age_start"), "year_start": item.get("year_start"), "year_end": item.get("year_end"), "overlay": analyze_overlay(chart, facts, daewoon_item=item)} for item in daewoon_items],
+        "sewoon": [{"year": item.get("year"), "pillar": item.get("pillar"), "overlay": analyze_overlay(chart, facts, sewoon_item=item)} for item in sewoon_items],
+        "rules": ["원국+운의 신규 관계 중 운이 관여한 관계만 overlay 자극으로 본다.", "火 관계/火 오행은 수습 과다 구조에서 말림·증발 작용으로 가점한다.", "水 관계/水 오행은 수습 과다 구조에서 침수 리스크로 감점한다.", "충·해·파·원진·귀문은 불안정 자극으로 별도 감점한다."],
     }
