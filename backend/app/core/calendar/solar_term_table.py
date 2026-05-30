@@ -4,11 +4,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 import json
+import os
 
 from app.core.calendar.solar_terms import ALL_24_SOLAR_TERMS, MONTH_BOUNDARIES, SolarTermBoundary
 
 REQUIRED_TERM_NAMES = [name for name, _ko, _month, _day in ALL_24_SOLAR_TERMS]
 REQUIRED_MONTH_BOUNDARY_NAMES = [item.name for item in MONTH_BOUNDARIES]
+DEFAULT_TABLE_FILENAME = "solar_terms_1900_2100.json"
 
 
 @dataclass(frozen=True)
@@ -23,8 +25,33 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[4]
 
 
-def _table_path() -> Path:
-    return _repo_root() / "data" / "solar_terms_1900_2100.json"
+def _candidate_table_paths() -> list[Path]:
+    candidates: list[Path] = []
+    env_path = os.getenv("SAJU_SOLAR_TERMS_PATH")
+    if env_path:
+        candidates.append(Path(env_path).expanduser())
+    candidates.extend(
+        [
+            _repo_root() / "data" / DEFAULT_TABLE_FILENAME,
+            _repo_root() / "backend" / "data" / DEFAULT_TABLE_FILENAME,
+            Path.cwd() / "data" / DEFAULT_TABLE_FILENAME,
+        ]
+    )
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for path in candidates:
+        resolved = path.resolve()
+        if str(resolved) not in seen:
+            unique.append(resolved)
+            seen.add(str(resolved))
+    return unique
+
+
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(_repo_root()))
+    except Exception:
+        return str(path)
 
 
 def validate_solar_term_year(year: int, terms: list[dict]) -> dict:
@@ -64,18 +91,20 @@ def validate_solar_term_table(data: dict) -> dict:
     return {"passed": not errors, "errors": errors, "year_results": year_results, "year_count": len(year_results)}
 
 
-def _load_table_data() -> tuple[dict | None, str]:
-    path = _table_path()
-    if not path.exists():
-        return None, "missing"
-    try:
-        return json.loads(path.read_text(encoding="utf-8")), str(path.relative_to(_repo_root()))
-    except Exception:
-        return None, "invalid_json"
+def _load_table_data() -> tuple[dict | None, str, list[str]]:
+    checked_paths = [_display_path(path) for path in _candidate_table_paths()]
+    for path in _candidate_table_paths():
+        if not path.exists():
+            continue
+        try:
+            return json.loads(path.read_text(encoding="utf-8")), _display_path(path), checked_paths
+        except Exception:
+            return None, f"invalid_json:{_display_path(path)}", checked_paths
+    return None, "missing", checked_paths
 
 
 def _load_external_table(year: int) -> SolarTermLookupResult | None:
-    data, source = _load_table_data()
+    data, source, _checked_paths = _load_table_data()
     if not data:
         return None
     year_data = data.get(str(year))
@@ -96,21 +125,51 @@ def solar_terms_lookup(year: int) -> SolarTermLookupResult:
     if external:
         return external
     terms = _fixed_terms(year)
+    data, source, checked_paths = _load_table_data()
+    year_available = str(year) in data if data else False
     return SolarTermLookupResult(
         mode="fixed_korean_civil_baseline",
         source="builtin_fixed_baseline",
         terms=terms,
-        validation={"passed": True, "errors": [], "warnings": ["external solar term table not found or invalid; fixed fallback active"], "term_count": len(terms)},
+        validation={
+            "passed": True,
+            "errors": [],
+            "warnings": ["external solar term table not found, invalid, or missing requested year; fixed fallback active"],
+            "term_count": len(terms),
+            "table_source": source,
+            "checked_paths": checked_paths,
+            "requested_year": year,
+            "requested_year_available": year_available,
+        },
     )
 
 
 def solar_term_table_status(year: int) -> dict:
-    data, source = _load_table_data()
+    data, source, checked_paths = _load_table_data()
     if not data:
-        return {"available": False, "source": source, "mode": "fixed_korean_civil_baseline", "validation": None}
+        return {
+            "available": False,
+            "source": source,
+            "mode": "fixed_korean_civil_baseline",
+            "validation": None,
+            "checked_paths": checked_paths,
+            "requested_year": year,
+            "requested_year_available": False,
+        }
     validation = validate_solar_term_table(data)
     year_validation = validate_solar_term_year(year, data.get(str(year), [])) if str(year) in data else None
-    return {"available": validation["passed"], "source": source, "mode": "solar_term_table" if validation["passed"] else "fixed_korean_civil_baseline", "validation": validation, "year_validation": year_validation}
+    requested_year_available = str(year) in data and bool(year_validation and year_validation["passed"])
+    available = validation["passed"] and requested_year_available
+    return {
+        "available": available,
+        "source": source,
+        "mode": "solar_term_table" if available else "fixed_korean_civil_baseline",
+        "validation": validation,
+        "year_validation": year_validation,
+        "checked_paths": checked_paths,
+        "requested_year": year,
+        "requested_year_available": requested_year_available,
+    }
 
 
 def month_boundaries_lookup(year: int) -> list[SolarTermBoundary]:
