@@ -3,37 +3,12 @@
 import { useState } from "react";
 
 type LoadedRule = { id: string; title: string; layer: string; target: string; priority: number; enabled: boolean };
-
-type CalendarRelation = {
-  kind: string;
-  kind_ko: string;
-  name: string;
-  name_ko: string;
-  positions: Array<{ position: string; label: string; pillar: string; stem?: string; branch?: string }>;
-  items: string[];
-  element_ko?: string;
-};
-
+type CalendarRelation = { kind: string; kind_ko: string; name: string; name_ko: string; positions: Array<{ position: string; label: string; pillar: string; stem?: string; branch?: string }>; items: string[]; element_ko?: string };
 type DaewoonCycle = { index: number; pillar: string; stem: string; branch: string; age_start: number; age_end: number; year_start: number; year_end: number; is_current: boolean };
 type SewoonYear = { year: number; pillar: string; stem: string; branch: string; is_current: boolean; relations_with_origin?: { items: CalendarRelation[]; summary: Record<string, unknown> } };
 type FortuneEvaluation = { score: number; grade: string; grade_ko: string; elements_ko: string[]; effects: string[]; risks: string[] };
-
-type ManseryukPillar = {
-  key: "hour" | "day" | "month" | "year";
-  label: string;
-  pillar: string;
-  stem: string;
-  branch: string;
-  stem_ten_god_ko: string;
-  branch_ten_god_ko: string;
-  hidden_stems: Array<{ stem: string; stem_ko: string; ten_god_ko: string }>;
-  twelve_unseong_ko: string;
-  pillar_stem_twelve_unseong_ko: string;
-  twelve_shinsal_year_base_ko: string;
-  xunkong_ko: string[];
-  relative_xunkong: { display_ko: string; is_void: boolean; base_label: string; void_branches_ko: string[] };
-  relations?: CalendarRelation[];
-};
+type Overlay = { summary_ko: string; scores: { grade: string; grade_ko: string; net_score: number; yongshin_score: number; gishin_score: number }; relation_stimulus: { highlights: string[]; risks: string[] }; relations: CalendarRelation[] };
+type ManseryukPillar = { key: "hour" | "day" | "month" | "year"; label: string; pillar: string; stem: string; branch: string; stem_ten_god_ko: string; branch_ten_god_ko: string; hidden_stems: Array<{ stem: string; stem_ko: string; ten_god_ko: string }>; twelve_unseong_ko: string; pillar_stem_twelve_unseong_ko: string; twelve_shinsal_year_base_ko: string; xunkong_ko: string[]; relative_xunkong: { display_ko: string; is_void: boolean; base_label: string; void_branches_ko: string[] }; relations?: CalendarRelation[] };
 
 type EngineResponse = {
   execution_id: string;
@@ -50,7 +25,7 @@ type EngineResponse = {
     engine_notes: string[];
   };
   facts: Record<string, any>;
-  fortune_analysis?: { current: { combined_score: number; grade: string; grade_ko: string; daewoon?: any; sewoon?: any }; daewoon: Array<any & { evaluation: FortuneEvaluation }>; sewoon: Array<any & { evaluation: FortuneEvaluation }>; principles: string[] };
+  fortune_analysis?: { current: { combined_score: number; grade: string; grade_ko: string; daewoon?: any; sewoon?: any }; overlay_result?: { current: { daewoon_overlay: Overlay; sewoon_overlay: Overlay; combined_overlay: Overlay }; daewoon: any[]; sewoon: any[]; rules: string[] }; daewoon: Array<any & { evaluation: FortuneEvaluation }>; sewoon: Array<any & { evaluation: FortuneEvaluation }>; principles: string[] };
   loaded_rules: LoadedRule[];
   proposals: unknown[];
   counter_rules_applied: unknown[];
@@ -67,28 +42,10 @@ function charClass(char: string, kind: "stem" | "branch") {
   if (["甲", "乙", "寅", "卯"].includes(char)) return `${kind}-wood`;
   return "";
 }
-
-function relationBadgeClass(kind: string) {
-  if (["branch_clash", "branch_harm", "branch_break", "wonjin", "gwimun", "self_penalty"].includes(kind)) return "bad";
-  if (["branch_liuhe", "stem_combo", "trine_full", "directional_full"].includes(kind)) return "good";
-  return "warn";
-}
-
-function fortuneBadgeClass(grade?: string) {
-  if (grade === "supportive") return "good";
-  if (grade === "risky") return "bad";
-  return "warn";
-}
-
-function relationText(relation: CalendarRelation) {
-  const positionText = relation.positions?.map((p) => p.label).join("·") ?? "";
-  const element = relation.element_ko ? ` → ${relation.element_ko}` : "";
-  return `${relation.name_ko}${element} (${positionText})`;
-}
-
-function RowLabel({ children }: { children: any }) {
-  return <div className="m-cell" style={{ background: "#f3f4f6", fontWeight: 900, display: "grid", placeItems: "center", color: "#374151" }}>{children}</div>;
-}
+function relationBadgeClass(kind: string) { if (["branch_clash", "branch_harm", "branch_break", "wonjin", "gwimun", "self_penalty"].includes(kind)) return "bad"; if (["branch_liuhe", "stem_combo", "trine_full", "directional_full"].includes(kind)) return "good"; return "warn"; }
+function fortuneBadgeClass(grade?: string) { if (grade === "supportive") return "good"; if (grade === "risky") return "bad"; return "warn"; }
+function relationText(relation: CalendarRelation) { const positionText = relation.positions?.map((p) => p.label).join("·") ?? ""; const element = relation.element_ko ? ` → ${relation.element_ko}` : ""; return `${relation.name_ko}${element} (${positionText})`; }
+function RowLabel({ children }: { children: any }) { return <div className="m-cell" style={{ background: "#f3f4f6", fontWeight: 900, display: "grid", placeItems: "center", color: "#374151" }}>{children}</div>; }
 
 export default function DashboardPage() {
   const [name, setName] = useState("sample");
@@ -99,18 +56,13 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   async function runEngine() {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const res = await fetch("/api/rule-runner", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rule_version: "v1.0.0", birth: { name, sex, birth_datetime: birthDatetime, calendar_type: "solar", timezone: "Asia/Seoul", location: "Seoul" } }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message ?? `API error: ${res.status}`);
       setResult(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "unknown error");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : "unknown error"); } finally { setLoading(false); }
   }
 
   const facts = result?.facts;
@@ -120,16 +72,18 @@ export default function DashboardPage() {
   const daewoon = cr?.daewoon;
   const sewoon = cr?.sewoon;
   const fortune = result?.fortune_analysis;
+  const overlay = fortune?.overlay_result?.current;
 
   return (
     <main>
-      <section className="page-hero"><div className="card"><h1 className="hero-title">만세력 보드</h1><p className="hero-subtitle">원국, 합충형파, 대운, 세운, 운세 판단을 한 화면에서 확인합니다.</p><div className="summary-strip"><span className="badge info">Calendar v1.7</span><span className="badge info">절기 검증</span><span className="badge info">운세 판단</span><span className="badge info">대운·세운</span></div></div><div className="card compact"><h2>빠른 실행</h2><p className="muted">기본값은 GC-001 검증 샘플입니다.</p><button onClick={runEngine}>{loading ? "실행 중..." : "Rule Runner 실행"}</button>{error && <p style={{ color: "#b91c1c" }}>Error: {error}</p>}</div></section>
+      <section className="page-hero"><div className="card"><h1 className="hero-title">만세력 보드</h1><p className="hero-subtitle">원국, 합충형파, 대운, 세운, 운세 판단과 운 자극 overlay를 한 화면에서 확인합니다.</p><div className="summary-strip"><span className="badge info">Calendar v1.7</span><span className="badge info">H-10 Overlay</span><span className="badge info">대운·세운 자극</span></div></div><div className="card compact"><h2>빠른 실행</h2><p className="muted">기본값은 GC-001 검증 샘플입니다.</p><button onClick={runEngine}>{loading ? "실행 중..." : "Rule Runner 실행"}</button>{error && <p style={{ color: "#b91c1c" }}>Error: {error}</p>}</div></section>
       <section className="card"><h2>Birth Input</h2><div className="grid-3"><label>이름<input value={name} onChange={(event) => setName(event.target.value)} /></label><label>성별<select value={sex} onChange={(event) => setSex(event.target.value)}><option value="male">male</option><option value="female">female</option><option value="unknown">unknown</option></select></label><label>생년월일시<input value={birthDatetime} onChange={(event) => setBirthDatetime(event.target.value)} placeholder="1991-05-29T16:36:00" /></label></div></section>
 
       {result && cr && (<>
         <section className="card"><h2>만세력 원판</h2><p className="summary-strip"><span className="badge info">절입: {String(cr.calendar_meta?.month_boundary_ko ?? cr.calendar_meta?.month_boundary ?? "-")}</span><span className="badge info">월지: {String(cr.calendar_meta?.month_branch ?? "-")}</span><span className="badge warn">절기모드: {String(cr.calendar_meta?.solar_term_mode ?? "-")}</span><span className={`badge ${cr.calendar_meta?.solar_term_table_status?.available ? "good" : "warn"}`}>절기테이블 {cr.calendar_meta?.solar_term_table_status?.available ? "사용" : "fallback"}</span></p><div className="manseryuk-board"><div className="manseryuk-grid" style={{ gridTemplateColumns: "90px repeat(4, minmax(160px, 1fr))" }}><RowLabel>구분</RowLabel>{board.map((p) => <div className="m-cell m-header" key={`h-${p.key}`}>{p.label}</div>)}<RowLabel>천간 십성</RowLabel>{board.map((p) => <div className="m-cell m-subheader" key={`tg-${p.key}`}>{p.stem_ten_god_ko}</div>)}<RowLabel>천간</RowLabel>{board.map((p) => <div className="m-cell m-stem-branch" key={`stem-${p.key}`}><div className="m-ten-god">{p.stem_ten_god_ko}</div><div className={`m-big-char ${p.key === "day" ? "stem-day" : ""} ${charClass(p.stem, "stem")}`}>{p.stem}</div></div>)}<RowLabel>지지</RowLabel>{board.map((p) => <div className="m-cell m-stem-branch" key={`branch-${p.key}`}><div className="m-ten-god">{p.branch_ten_god_ko}</div><div className={`m-big-char ${charClass(p.branch, "branch")}`}>{p.branch}</div></div>)}<RowLabel>지장간</RowLabel>{board.map((p) => <div className="m-cell m-hidden" key={`hs-${p.key}`}>{p.hidden_stems.map((h) => `${h.stem}${h.ten_god_ko}`).join("\n")}</div>)}<RowLabel>십이운성<br />일간</RowLabel>{board.map((p) => <div className="m-cell m-small" key={`un-day-${p.key}`}>{p.twelve_unseong_ko}</div>)}<RowLabel>십이운성<br />각 간</RowLabel>{board.map((p) => <div className="m-cell m-small" key={`un-pillar-${p.key}`}>{p.pillar_stem_twelve_unseong_ko}</div>)}<RowLabel>공망</RowLabel>{board.map((p) => <div className="m-cell m-small" key={`xk-${p.key}`}><span className={`badge ${p.relative_xunkong?.is_void ? "bad" : "info"}`}>{p.relative_xunkong?.display_ko ?? "-"}</span><br /><span className="muted">{p.relative_xunkong?.base_label ?? ""} {p.relative_xunkong?.void_branches_ko?.join("·") ?? ""}</span></div>)}<RowLabel>십이신살</RowLabel>{board.map((p) => <div className="m-cell m-yellow m-small" key={`ss-${p.key}`}>{p.twelve_shinsal_year_base_ko}</div>)}</div></div></section>
         <section className="card"><h2>합·충·형·파 관계</h2>{relations.length ? <div className="summary-strip">{relations.map((relation, index) => <span className={`badge ${relationBadgeClass(relation.kind)}`} key={`${relation.kind}-${relation.name}-${index}`}>{relation.kind_ko}: {relationText(relation)}</span>)}</div> : <p className="muted">감지된 관계가 없습니다.</p>}<details><summary>관계 JSON</summary><pre>{JSON.stringify(cr.relations ?? cr.manseryuk_view?.relations, null, 2)}</pre></details></section>
         {fortune && <section className="card"><h2>운세 판단 요약</h2><p><span className={`badge ${fortuneBadgeClass(fortune.current.grade)}`}>{fortune.current.grade_ko}</span><span className="badge">종합점수 {fortune.current.combined_score}</span></p><div className="grid"><div className="card compact"><h3>현재 대운</h3><p><span className={`badge ${fortuneBadgeClass(fortune.current.daewoon?.evaluation?.grade)}`}>{fortune.current.daewoon?.pillar} {fortune.current.daewoon?.evaluation?.grade_ko}</span></p><p className="muted">{fortune.current.daewoon?.evaluation?.effects?.[0] ?? "-"}</p><p className="muted">{fortune.current.daewoon?.evaluation?.risks?.[0] ?? ""}</p></div><div className="card compact"><h3>현재 세운</h3><p><span className={`badge ${fortuneBadgeClass(fortune.current.sewoon?.evaluation?.grade)}`}>{fortune.current.sewoon?.year} {fortune.current.sewoon?.pillar} {fortune.current.sewoon?.evaluation?.grade_ko}</span></p><p className="muted">{fortune.current.sewoon?.evaluation?.effects?.[0] ?? "-"}</p><p className="muted">{fortune.current.sewoon?.evaluation?.risks?.[0] ?? ""}</p></div></div><details><summary>운세 판단 JSON</summary><pre>{JSON.stringify(fortune, null, 2)}</pre></details></section>}
+        {overlay && <section className="card"><h2>운 자극 분석</h2><p><span className={`badge ${fortuneBadgeClass(overlay.combined_overlay.scores.grade)}`}>{overlay.combined_overlay.scores.grade_ko}</span><span className="badge">순점수 {overlay.combined_overlay.scores.net_score}</span><span className="badge good">용신 {overlay.combined_overlay.scores.yongshin_score}</span><span className="badge bad">기신 {overlay.combined_overlay.scores.gishin_score}</span></p><div className="grid"><div className="card compact"><h3>대운 Overlay</h3><p>{overlay.daewoon_overlay.summary_ko}</p><p>{overlay.daewoon_overlay.relations.slice(0, 4).map((r, i) => <span className={`badge ${relationBadgeClass(r.kind)}`} key={i}>{r.name_ko}</span>)}</p></div><div className="card compact"><h3>세운 Overlay</h3><p>{overlay.sewoon_overlay.summary_ko}</p><p>{overlay.sewoon_overlay.relations.slice(0, 4).map((r, i) => <span className={`badge ${relationBadgeClass(r.kind)}`} key={i}>{r.name_ko}</span>)}</p></div></div><div className="card compact"><h3>대운+세운 Combined</h3><p>{overlay.combined_overlay.summary_ko}</p><p>{overlay.combined_overlay.relation_stimulus.highlights.map((x, i) => <span className="badge good" key={`h-${i}`}>{x}</span>)}{overlay.combined_overlay.relation_stimulus.risks.map((x, i) => <span className="badge bad" key={`r-${i}`}>{x}</span>)}</p></div><details><summary>Overlay JSON</summary><pre>{JSON.stringify(fortune.overlay_result, null, 2)}</pre></details></section>}
         {daewoon && <section className="card"><h2>대운</h2><p className="summary-strip"><span className="badge info">방향: {daewoon.direction.direction_ko}</span><span className="badge">기준 월주: {daewoon.base_month_pillar}</span><span className="badge warn">시작: {daewoon.start.start_age_years}세 {daewoon.start.start_age_months}개월</span></p><div className="manseryuk-board"><div className="manseryuk-grid" style={{ gridTemplateColumns: "repeat(10, minmax(110px, 1fr))" }}>{daewoon.cycles.map((cycle) => <div className={`m-cell m-header ${cycle.is_current ? "m-yellow" : ""}`} key={`dh-${cycle.index}`}>{cycle.age_start.toFixed(1)}세</div>)}{daewoon.cycles.map((cycle) => <div className="m-cell m-stem-branch" key={`dp-${cycle.index}`}><div className={`m-big-char ${charClass(cycle.stem, "stem")}`}>{cycle.stem}</div><div className={`m-big-char ${charClass(cycle.branch, "branch")}`} style={{ marginTop: 8 }}>{cycle.branch}</div></div>)}{daewoon.cycles.map((cycle) => <div className="m-cell m-small" key={`dy-${cycle.index}`}>{cycle.year_start}~{cycle.year_end}</div>)}</div></div><details><summary>대운 JSON</summary><pre>{JSON.stringify(daewoon, null, 2)}</pre></details></section>}
         {sewoon && <section className="card"><h2>세운</h2><p className="summary-strip"><span className="badge info">범위: {sewoon.range.start_year}~{sewoon.range.end_year}</span><span className="badge warn">현재: {sewoon.current?.year ?? "-"} {sewoon.current?.pillar ?? "-"}</span></p><div className="manseryuk-board"><div className="manseryuk-grid" style={{ gridTemplateColumns: `repeat(${sewoon.years.length}, minmax(92px, 1fr))` }}>{sewoon.years.map((item) => <div className={`m-cell m-header ${item.is_current ? "m-yellow" : ""}`} key={`sy-${item.year}`}>{item.year}</div>)}{sewoon.years.map((item) => <div className="m-cell m-stem-branch" key={`sp-${item.year}`}><div className={`m-big-char ${charClass(item.stem, "stem")}`}>{item.stem}</div><div className={`m-big-char ${charClass(item.branch, "branch")}`} style={{ marginTop: 8 }}>{item.branch}</div></div>)}{sewoon.years.map((item) => <div className="m-cell m-small" key={`sr-${item.year}`}>{item.relations_with_origin?.items?.slice(0, 2).map((r) => r.name_ko).join(" · ") || "-"}</div>)}</div></div><details><summary>세운 JSON</summary><pre>{JSON.stringify(sewoon, null, 2)}</pre></details></section>}
         <section className="grid-3"><div className="metric"><div className="metric-label">핵심 병</div><div className="metric-value">{result.final_result.core_disease}</div></div><div className="metric"><div className="metric-label">약</div><div className="metric-value">{result.final_result.medicine}</div></div><div className="metric"><div className="metric-label">용신</div><div className="metric-value">{result.final_result.yongshin}</div></div></section>
