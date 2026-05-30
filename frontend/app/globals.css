@@ -196,6 +196,108 @@ main {
   margin-top: 12px;
 }
 
+.manseryuk-board {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.manseryuk-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+}
+
+.m-cell {
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+  padding: 10px 8px;
+  min-height: 44px;
+  background: #fff;
+}
+
+.m-cell:nth-child(4n) {
+  border-right: 0;
+}
+
+.m-header {
+  background: #a3a3a3;
+  color: #111827;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.m-subheader {
+  background: #ececf1;
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.m-stem-branch {
+  padding: 12px 8px;
+}
+
+.m-ten-god {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.m-big-char {
+  display: inline-grid;
+  place-items: center;
+  width: 86px;
+  height: 86px;
+  border: 4px solid #111827;
+  background: #fff;
+  font-size: 58px;
+  font-weight: 900;
+  line-height: 1;
+  color: #111827;
+  text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff;
+}
+
+.m-big-char.stem-day {
+  background: #fbbf24;
+}
+
+.m-big-char.branch-fire {
+  background: #ef4444;
+  color: #fff;
+}
+
+.m-big-char.branch-earth,
+.m-big-char.stem-earth {
+  background: #fbbf24;
+}
+
+.m-big-char.stem-water,
+.m-big-char.branch-water,
+.m-big-char.stem-metal,
+.m-big-char.branch-metal {
+  background: #262626;
+  color: #fff;
+}
+
+.m-hidden {
+  font-size: 18px;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.m-small {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.m-yellow {
+  background: #fff7b2;
+}
+
 pre {
   white-space: pre-wrap;
   word-break: break-word;
@@ -348,6 +450,14 @@ label {
   .workflow,
   .pillar-row {
     grid-template-columns: 1fr;
+  }
+
+  .manseryuk-board {
+    overflow-x: auto;
+  }
+
+  .manseryuk-grid {
+    min-width: 760px;
   }
 
   .topbar {
