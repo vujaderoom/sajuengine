@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field
 
 from app.core.calendar.service import calculate_chart
+from app.core.regression.runner import run_case_by_id, run_regressions
 from app.core.rule_dsl.loader import load_rules
 from app.core.rule_runner.service import execute_rule_runner
 from app.schemas import BirthInput, RuleRunnerRequest
@@ -31,8 +33,97 @@ class CaseAuthoringRequest(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class NaturalLogicRequest(BaseModel):
+    case_id: str = "GC-DRAFT-001"
+    title: str = "새 해석 케이스 초안"
+    birth: BirthInput = Field(default_factory=BirthInput)
+    natural_logic_text: str = ""
+
+
+class CaseSaveRequest(BaseModel):
+    authoring: CaseAuthoringRequest
+    overwrite: bool = False
+    run_regression_after_save: bool = True
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[4]
+
+
+def _golden_case_path(case_id: str) -> Path:
+    safe_id = case_id.replace("/", "_").replace("..", "_")
+    return _repo_root() / "golden_cases" / f"{safe_id}.yaml"
+
+
 def _split_logic(text: str) -> list[str]:
     return [line.strip(" -\t") for line in text.splitlines() if line.strip(" -\t")]
+
+
+def _has_any(text: str, terms: list[str]) -> bool:
+    return any(term in text for term in terms)
+
+
+def structure_natural_logic(request: NaturalLogicRequest) -> dict[str, Any]:
+    text = request.natural_logic_text
+    lines = _split_logic(text)
+
+    disease_core = "기후형 병" if _has_any(text, ["습", "침수", "비", "물", "수기", "한랭", "조후"]) else "미정"
+    disease_subtype = "수습 과다·침수형" if _has_any(text, ["침수", "물에 잠", "수습", "습이 과", "질척", "비가"] ) else "미정"
+    medicine_type = "기후 복원형" if disease_core == "기후형 병" else "미정"
+
+    if _has_any(text, ["말림", "건조", "증발", "말려", "말려야", "화로"]):
+        medicine_action = "말림·건조·증발"
+    elif _has_any(text, ["개통", "소통", "뚫", "절단"]):
+        medicine_action = "유통 개통"
+    else:
+        medicine_action = ""
+
+    if _has_any(text, ["火", "화", "병화", "정화", "사화", "오화", "丙", "丁", "巳", "午"]):
+        yongshin_primary = "火"
+        yongshin_symbols = ["巳火", "午火", "丙火", "丁火"]
+    elif _has_any(text, ["庚", "경금", "금"]):
+        yongshin_primary = "金"
+        yongshin_symbols = ["庚金"]
+    else:
+        yongshin_primary = ""
+        yongshin_symbols = []
+
+    excluded_candidates = []
+    if _has_any(text, ["경금", "庚"] ) and _has_any(text, ["아니", "보조", "조건부", "탈락"]):
+        excluded_candidates.append(
+            {
+                "value": "庚金",
+                "reason": "입력 논리상 주용신이 아니라 조건부 보조 후보로 설명됨",
+            }
+        )
+
+    authoring = CaseAuthoringRequest(
+        case_id=request.case_id,
+        title=request.title,
+        birth=request.birth,
+        image_logic_text="\n".join(lines),
+        disease_core=disease_core,
+        disease_subtype=disease_subtype,
+        disease_reason="자연어 물상 논리에서 추출된 병 구조 후보입니다.",
+        medicine_type=medicine_type,
+        medicine_action=medicine_action,
+        medicine_reason="자연어 물상 논리에서 추출된 약 작용 후보입니다.",
+        yongshin_primary=yongshin_primary,
+        yongshin_symbols=yongshin_symbols,
+        excluded_candidates=excluded_candidates,
+        notes=["자연어 구조화 초안: 저장 전 해석자 검토 필요"],
+    )
+    preview = generate_case_preview(authoring)
+    return {
+        "structured_authoring": authoring.model_dump(),
+        "confidence": "scaffold",
+        "extraction_notes": [
+            "현재는 규칙 기반 구조화 scaffold입니다.",
+            "외부 LLM 또는 내부 LLM을 붙이면 이 함수만 교체할 수 있습니다.",
+            "저장 전 disease/yongshin/medicine 필드는 반드시 검토하세요.",
+        ],
+        "preview": preview,
+    }
 
 
 def _recommend_linked_rules(engine_result: dict[str, Any], requested_primary: str) -> list[str]:
@@ -136,4 +227,30 @@ def generate_case_preview(request: CaseAuthoringRequest) -> dict[str, Any]:
         "case_yaml": case_yaml,
         "raw_yaml": raw_yaml,
         "save_instruction": f"저장 시 golden_cases/{request.case_id}.yaml 파일로 추가",
+    }
+
+
+def save_case(request: CaseSaveRequest) -> dict[str, Any]:
+    preview = generate_case_preview(request.authoring)
+    path = _golden_case_path(request.authoring.case_id)
+    if path.exists() and not request.overwrite:
+        return {
+            "saved": False,
+            "reason": "case_already_exists",
+            "path": str(path.relative_to(_repo_root())),
+            "preview": preview,
+        }
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(preview["raw_yaml"], encoding="utf-8")
+
+    single_case_result = run_case_by_id(request.authoring.case_id)
+    regression_result = run_regressions() if request.run_regression_after_save else None
+    return {
+        "saved": True,
+        "path": str(path.relative_to(_repo_root())),
+        "case_id": request.authoring.case_id,
+        "single_case_result": single_case_result,
+        "regression_result": regression_result,
+        "preview": preview,
     }
