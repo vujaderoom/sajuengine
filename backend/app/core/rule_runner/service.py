@@ -5,6 +5,7 @@ from uuid import uuid4
 from app.core.calendar.service import calculate_chart
 from app.core.fact_builder.service import build_fact
 from app.core.finalizer.service import finalize, to_legacy_final_result
+from app.core.fortune.analysis import analyze_fortune
 from app.core.rule_dsl.evaluator import evaluate_when
 from app.core.rule_dsl.loader import load_rules
 from app.schemas import RuleRunnerRequest
@@ -53,9 +54,13 @@ def execute_rule_runner(request: RuleRunnerRequest) -> dict:
     execution_id = "ex_" + uuid4().hex[:12]
     chart_payload = calculate_chart(request.birth)
     fact = build_fact(chart_payload)
-    context = {"birth": request.birth.model_dump(), "chart": chart_payload["chart"], "fact": fact}
+    fortune_analysis = analyze_fortune(chart_payload, fact)
+    context = {"birth": request.birth.model_dump(), "chart": chart_payload["chart"], "fact": fact, "fortune_analysis": fortune_analysis}
 
-    decision_trace = [{"type": "FACT_BUILT", "stage": "fact_builder", "output_json": fact}]
+    decision_trace = [
+        {"type": "FACT_BUILT", "stage": "fact_builder", "output_json": fact},
+        {"type": "FORTUNE_ANALYZED", "stage": "fortune_analysis", "output_json": fortune_analysis["current"]},
+    ]
     proposals: list[dict] = []
     counter_rules_applied: list[dict] = []
     loaded_rules = load_rules(request.rule_version)
@@ -126,6 +131,7 @@ def execute_rule_runner(request: RuleRunnerRequest) -> dict:
         "birth": request.birth.model_dump(),
         "chart_result": chart_payload,
         "facts": fact,
+        "fortune_analysis": fortune_analysis,
         "loaded_rules": [
             {
                 "id": rule.get("id"),
