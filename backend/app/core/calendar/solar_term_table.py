@@ -11,6 +11,7 @@ from app.core.calendar.solar_terms import ALL_24_SOLAR_TERMS, MONTH_BOUNDARIES, 
 REQUIRED_TERM_NAMES = [name for name, _ko, _month, _day in ALL_24_SOLAR_TERMS]
 REQUIRED_MONTH_BOUNDARY_NAMES = [item.name for item in MONTH_BOUNDARIES]
 DEFAULT_TABLE_FILENAME = "solar_terms_1900_2100.json"
+_RUNTIME_CACHE: dict[int, SolarTermLookupResult] = {}
 
 
 @dataclass(frozen=True)
@@ -116,6 +117,44 @@ def _load_external_table(year: int) -> SolarTermLookupResult | None:
     return SolarTermLookupResult(mode="solar_term_table", source=source, terms=year_data, validation=validation)
 
 
+def _load_runtime_skyfield(year: int) -> SolarTermLookupResult | None:
+    if year in _RUNTIME_CACHE:
+        return _RUNTIME_CACHE[year]
+    try:
+        from app.core.calendar.runtime_solar_terms import runtime_skyfield_terms_for_year
+
+        result = runtime_skyfield_terms_for_year(year)
+        if not result.get("available"):
+            return None
+        terms = result["terms"]
+        validation = validate_solar_term_year(year, terms)
+        if not validation["passed"]:
+            return None
+        lookup = SolarTermLookupResult(
+            mode="skyfield_runtime",
+            source="skyfield_runtime:de421.bsp",
+            terms=terms,
+            validation={**validation, "runtime_error": result.get("error")},
+        )
+        _RUNTIME_CACHE[year] = lookup
+        return lookup
+    except Exception:
+        return None
+
+
+def _runtime_status(year: int) -> dict:
+    try:
+        from app.core.calendar.runtime_solar_terms import runtime_skyfield_terms_for_year
+
+        result = runtime_skyfield_terms_for_year(year)
+        if not result.get("available"):
+            return {"available": False, "source": "skyfield_runtime:de421.bsp", "error": result.get("error")}
+        validation = validate_solar_term_year(year, result["terms"])
+        return {"available": validation["passed"], "source": "skyfield_runtime:de421.bsp", "validation": validation, "error": result.get("error")}
+    except Exception as exc:
+        return {"available": False, "source": "skyfield_runtime:de421.bsp", "error": repr(exc)}
+
+
 def _fixed_terms(year: int) -> list[dict]:
     return [{"name": name, "ko": ko, "datetime": datetime(year, month, day).isoformat(), "source": "fixed_baseline"} for name, ko, month, day in ALL_24_SOLAR_TERMS]
 
@@ -124,6 +163,9 @@ def solar_terms_lookup(year: int) -> SolarTermLookupResult:
     external = _load_external_table(year)
     if external:
         return external
+    runtime = _load_runtime_skyfield(year)
+    if runtime:
+        return runtime
     terms = _fixed_terms(year)
     data, source, checked_paths = _load_table_data()
     year_available = str(year) in data if data else False
@@ -134,7 +176,7 @@ def solar_terms_lookup(year: int) -> SolarTermLookupResult:
         validation={
             "passed": True,
             "errors": [],
-            "warnings": ["external solar term table not found, invalid, or missing requested year; fixed fallback active"],
+            "warnings": ["external solar term table and runtime skyfield unavailable; fixed fallback active"],
             "term_count": len(terms),
             "table_source": source,
             "checked_paths": checked_paths,
@@ -146,37 +188,44 @@ def solar_terms_lookup(year: int) -> SolarTermLookupResult:
 
 def solar_term_table_status(year: int) -> dict:
     data, source, checked_paths = _load_table_data()
-    if not data:
-        return {
-            "available": False,
-            "source": source,
-            "mode": "fixed_korean_civil_baseline",
-            "validation": None,
-            "checked_paths": checked_paths,
-            "requested_year": year,
-            "requested_year_available": False,
-        }
-    validation = validate_solar_term_table(data)
-    year_validation = validate_solar_term_year(year, data.get(str(year), [])) if str(year) in data else None
-    requested_year_available = str(year) in data and bool(year_validation and year_validation["passed"])
-    available = validation["passed"] and requested_year_available
-    return {
-        "available": available,
+    table_status = {
+        "available": False,
         "source": source,
-        "mode": "solar_term_table" if available else "fixed_korean_civil_baseline",
-        "validation": validation,
-        "year_validation": year_validation,
+        "validation": None,
+        "year_validation": None,
         "checked_paths": checked_paths,
         "requested_year": year,
-        "requested_year_available": requested_year_available,
+        "requested_year_available": False,
+    }
+    if data:
+        validation = validate_solar_term_table(data)
+        year_validation = validate_solar_term_year(year, data.get(str(year), [])) if str(year) in data else None
+        requested_year_available = str(year) in data and bool(year_validation and year_validation["passed"])
+        table_status.update(
+            {
+                "available": validation["passed"] and requested_year_available,
+                "validation": validation,
+                "year_validation": year_validation,
+                "requested_year_available": requested_year_available,
+            }
+        )
+    runtime_status = _runtime_status(year)
+    active = solar_terms_lookup(year)
+    return {
+        "available": active.mode in ["solar_term_table", "skyfield_runtime"],
+        "mode": active.mode,
+        "source": active.source,
+        "table": table_status,
+        "runtime": runtime_status,
+        "fallback_active": active.mode == "fixed_korean_civil_baseline",
     }
 
 
 def month_boundaries_lookup(year: int) -> list[SolarTermBoundary]:
-    external = _load_external_table(year)
-    if not external:
+    lookup = solar_terms_lookup(year)
+    if lookup.mode == "fixed_korean_civil_baseline":
         return MONTH_BOUNDARIES
-    by_name = {item.get("name"): item for item in external.terms}
+    by_name = {item.get("name"): item for item in lookup.terms}
     boundaries: list[SolarTermBoundary] = []
     for boundary in MONTH_BOUNDARIES:
         row = by_name.get(boundary.name)
