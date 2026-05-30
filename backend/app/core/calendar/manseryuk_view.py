@@ -50,6 +50,14 @@ def _relative_xunkong_label(key: str, branch: str, year_xunkong: list[str], day_
     }
 
 
+def _relations_for_position(relations: dict, position: str) -> list[dict]:
+    return [
+        relation
+        for relation in relations.get("items", [])
+        if any(pos.get("position") == position for pos in relation.get("positions", []))
+    ]
+
+
 def build_manseryuk_view(chart_result: dict) -> dict:
     chart = chart_result["chart"]
     day_stem = chart["day"][0]
@@ -58,6 +66,7 @@ def build_manseryuk_view(chart_result: dict) -> dict:
     year_xunkong = xunkong["year"]
     day_xunkong = xunkong["day"]
     display_ko = chart_result.get("display_ko", {})
+    relations = chart_result.get("relations", {"items": []})
 
     pillars = []
     for key in ORDER:
@@ -91,12 +100,14 @@ def build_manseryuk_view(chart_result: dict) -> dict:
                 "xunkong": xunkong[key],
                 "xunkong_ko": [branch_to_ko(branch) for branch in xunkong[key]],
                 "relative_xunkong": _relative_xunkong_label(key, branch, year_xunkong, day_xunkong),
+                "relations": _relations_for_position(relations, key),
             }
         )
 
     return {
         "order": ORDER,
         "pillars": pillars,
+        "relations": relations,
         "xunkong_by_pillar": xunkong,
         "relative_xunkong_rule": "day pillar checks year-xunkong; year/month/hour pillars check day-xunkong",
         "year_xunkong": year_xunkong,
