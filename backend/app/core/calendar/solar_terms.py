@@ -16,9 +16,6 @@ class SolarTermBoundary:
     minute: int = 0
 
 
-# Calendar Engine v1.0 baseline.
-# 실제 만세력 앱과의 완전 일치를 위해 다음 단계에서 Skyfield 기반 절기 시각 테이블로 교체한다.
-# 이 테이블은 12절입의 한국 민간력 평균일 baseline이며, 월주 경계 구조 검증용이다.
 MONTH_BOUNDARIES = [
     SolarTermBoundary("立春", "입춘", "寅", 1, 2, 4),
     SolarTermBoundary("驚蟄", "경칩", "卯", 2, 3, 6),
@@ -50,13 +47,23 @@ ALL_24_SOLAR_TERMS = [
 ]
 
 
+def _boundaries_for_year(year: int) -> list[SolarTermBoundary]:
+    try:
+        from app.core.calendar.solar_term_table import month_boundaries_lookup
+        return month_boundaries_lookup(year)
+    except Exception:
+        return MONTH_BOUNDARIES
+
+
 def boundary_datetime(year: int, boundary: SolarTermBoundary) -> datetime:
     boundary_year = year + 1 if boundary.branch == "丑" else year
     return datetime(boundary_year, boundary.month, boundary.day, boundary.hour, boundary.minute)
 
 
 def ipchun_datetime(year: int) -> datetime:
-    return datetime(year, 2, 4)
+    boundaries = _boundaries_for_year(year)
+    ipchun = next((item for item in boundaries if item.name == "立春"), MONTH_BOUNDARIES[0])
+    return datetime(year, ipchun.month, ipchun.day, ipchun.hour, ipchun.minute)
 
 
 def solar_year_for_pillar(dt: datetime) -> int:
@@ -65,15 +72,46 @@ def solar_year_for_pillar(dt: datetime) -> int:
 
 def month_boundary_for_datetime(dt: datetime) -> SolarTermBoundary:
     solar_year = solar_year_for_pillar(dt)
-    selected = MONTH_BOUNDARIES[0]
-    for boundary in MONTH_BOUNDARIES:
+    selected = _boundaries_for_year(solar_year)[0]
+    for boundary in _boundaries_for_year(solar_year):
         if dt >= boundary_datetime(solar_year, boundary):
             selected = boundary
     return selected
 
 
+def next_month_boundary_after(dt: datetime) -> datetime:
+    solar_year = solar_year_for_pillar(dt)
+    candidates: list[datetime] = []
+    for year in [solar_year - 1, solar_year, solar_year + 1]:
+        for boundary in _boundaries_for_year(year):
+            bdt = boundary_datetime(year, boundary)
+            if bdt > dt:
+                candidates.append(bdt)
+    return min(candidates)
+
+
+def previous_month_boundary_before(dt: datetime) -> datetime:
+    solar_year = solar_year_for_pillar(dt)
+    candidates: list[datetime] = []
+    for year in [solar_year - 1, solar_year, solar_year + 1]:
+        for boundary in _boundaries_for_year(year):
+            bdt = boundary_datetime(year, boundary)
+            if bdt < dt:
+                candidates.append(bdt)
+    return max(candidates)
+
+
 def solar_terms_for_year(year: int) -> list[dict]:
-    return [
-        {"name": name, "ko": ko, "datetime": datetime(year, month, day).isoformat()} 
-        for name, ko, month, day in ALL_24_SOLAR_TERMS
-    ]
+    try:
+        from app.core.calendar.solar_term_table import solar_terms_lookup
+        return solar_terms_lookup(year).terms
+    except Exception:
+        return [{"name": name, "ko": ko, "datetime": datetime(year, month, day).isoformat()} for name, ko, month, day in ALL_24_SOLAR_TERMS]
+
+
+def solar_term_mode_for_year(year: int) -> str:
+    try:
+        from app.core.calendar.solar_term_table import solar_terms_lookup
+        return solar_terms_lookup(year).mode
+    except Exception:
+        return "fixed_korean_civil_baseline"
