@@ -17,6 +17,20 @@ from app.core.fact_builder.service import build_fact
 from app.core.governance.service import governance_dashboard
 from app.core.llm.renderer import render_report
 from app.core.llm.verifier import verify_output
+from app.core.logic_library.service import (
+    LogicCardCreateRequest,
+    LogicCardUpdateRequest,
+    LogicMatchRequest,
+    LogicStructureRequest,
+    create_logic_card,
+    delete_logic_card,
+    get_logic_card,
+    list_logic_cards,
+    match_logic_cards,
+    structure_logic_text,
+    toggle_logic_card,
+    update_logic_card,
+)
 from app.core.regression.runner import run_case_by_id, run_regressions
 from app.core.report_payload.builder import build_report_payload
 from app.core.rule_candidates.service import (
@@ -46,7 +60,11 @@ class RenderRequest(BaseModel):
     user_question: str = ""
 
 
-app = FastAPI(title="Saju Engine", version="0.14.0")
+class ToggleRequest(BaseModel):
+    active: bool
+
+
+app = FastAPI(title="Saju Engine", version="0.15.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -61,30 +79,79 @@ app.add_middleware(
 def root():
     return {
         "service": "sajuengine",
-        "version": "0.14.0",
+        "version": "0.15.0",
         "docs": "/docs",
         "health": "/api/health",
         "sample": "/api/v1/rule-runner/sample",
         "rules": "/api/v1/rules",
         "rule_candidates": "/api/v1/rule-candidates",
+        "logic_cards": "/api/v1/logic-cards",
         "cases": "/api/v1/cases",
-        "case_authoring": "/api/v1/cases/authoring/preview",
-        "case_natural_logic": "/api/v1/cases/authoring/structure-natural-logic",
-        "case_save": "/api/v1/cases/authoring/save",
         "regressions": "/api/v1/regressions/run",
         "governance": "/api/v1/governance",
-        "report_preview": "/api/v1/reports/preview",
     }
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "sajuengine", "version": "0.14.0"}
+    return {"status": "ok", "service": "sajuengine", "version": "0.15.0"}
 
 
 @app.get("/api/v1/governance")
 def governance(version: str = "v1.0.0"):
     return governance_dashboard(version)
+
+
+@app.get("/api/v1/logic-cards")
+def logic_cards(include_disabled: bool = True):
+    return list_logic_cards(include_disabled=include_disabled)
+
+
+@app.post("/api/v1/logic-cards/structure")
+def logic_cards_structure(request: LogicStructureRequest):
+    return structure_logic_text(request)
+
+
+@app.post("/api/v1/logic-cards")
+def logic_cards_create(request: LogicCardCreateRequest):
+    return create_logic_card(request)
+
+
+@app.post("/api/v1/logic-cards/match")
+def logic_cards_match(request: LogicMatchRequest):
+    return match_logic_cards(request)
+
+
+@app.get("/api/v1/logic-cards/{logic_id}")
+def logic_cards_detail(logic_id: str):
+    result = get_logic_card(logic_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Logic card not found")
+    return result
+
+
+@app.patch("/api/v1/logic-cards/{logic_id}")
+def logic_cards_update(logic_id: str, request: LogicCardUpdateRequest):
+    result = update_logic_card(logic_id, request)
+    if not result:
+        raise HTTPException(status_code=404, detail="Logic card not found")
+    return result
+
+
+@app.post("/api/v1/logic-cards/{logic_id}/toggle")
+def logic_cards_toggle(logic_id: str, request: ToggleRequest):
+    result = toggle_logic_card(logic_id, request.active)
+    if not result:
+        raise HTTPException(status_code=404, detail="Logic card not found")
+    return result
+
+
+@app.delete("/api/v1/logic-cards/{logic_id}")
+def logic_cards_delete(logic_id: str):
+    result = delete_logic_card(logic_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Logic card not found")
+    return result
 
 
 @app.get("/api/v1/cases")
