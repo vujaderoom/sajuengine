@@ -84,7 +84,7 @@ def test_sewoon_and_manseryuk_rows():
     assert any(row["key"] == "relative_xunkong" for row in rows)
 
 
-def test_fortune_overlay_for_sample():
+def test_fortune_overlay_and_timeline_for_sample():
     chart_result = get_result("1991-05-29T16:36:00", sex="male")
     from app.core.fact_builder.service import build_fact
     from app.core.fortune.analysis import analyze_fortune
@@ -92,12 +92,16 @@ def test_fortune_overlay_for_sample():
     facts = build_fact(chart_result)
     fortune = analyze_fortune(chart_result, facts)
     overlay = fortune["overlay_result"]
-    assert overlay["model_version"] == "fortune_overlay_v1.0.0"
+    assert overlay["model_version"] == "fortune_overlay_v1.0.1"
     assert "combined_overlay" in overlay["current"]
     assert "scores" in overlay["current"]["combined_overlay"]
     assert "yongshin_score" in overlay["current"]["combined_overlay"]["scores"]
     assert "gishin_score" in overlay["current"]["combined_overlay"]["scores"]
     assert isinstance(overlay["current"]["combined_overlay"]["relations"], list)
+    assert fortune["timeline"]["model_version"] == "fortune_timeline_v1.0.0"
+    assert len(fortune["timeline"]["daewoon"]) == 10
+    assert len(fortune["timeline"]["sewoon"]) == 11
+    assert "supportive_top" in fortune["timeline"]["highlights"]
 
 
 def test_solar_term_table_status_metadata():
