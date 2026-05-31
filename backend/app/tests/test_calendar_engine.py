@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from app.core.calendar.service import calculate_chart
 from app.schemas import BirthInput
 
@@ -14,6 +16,18 @@ def get_meta(dt_text: str):
     return get_result(dt_text)["calendar_meta"]
 
 
+def _solar_term_dt(year: int, term_name: str) -> datetime:
+    meta = get_meta(f"{year}-05-29T12:00:00")
+    for term in meta["solar_terms"]:
+        if term["name"] == term_name:
+            return datetime.fromisoformat(term["datetime"]).replace(tzinfo=None)
+    raise AssertionError(f"solar term not found: {term_name}")
+
+
+def _local_text(dt: datetime) -> str:
+    return dt.replace(tzinfo=None).isoformat(timespec="seconds")
+
+
 def test_sample_chart():
     chart = get_chart("1991-05-29T16:36:00")
     assert chart["year"] == "辛未"
@@ -23,17 +37,23 @@ def test_sample_chart():
 
 
 def test_ipchun_cases():
-    assert get_chart("1991-02-03T12:00:00")["year"] == "庚午"
-    assert get_chart("1991-02-03T12:00:00")["month"] == "己丑"
-    assert get_meta("1991-02-03T12:00:00")["solar_year_for_pillar"] == 1990
-    assert get_chart("1991-02-04T12:00:00")["year"] == "辛未"
-    assert get_chart("1991-02-04T12:00:00")["month"] == "庚寅"
-    assert get_meta("1991-02-04T12:00:00")["solar_year_for_pillar"] == 1991
+    ipchun = _solar_term_dt(1991, "立春")
+    before = _local_text(ipchun - timedelta(hours=1))
+    after = _local_text(ipchun + timedelta(hours=1))
+    assert get_chart(before)["year"] == "庚午"
+    assert get_chart(before)["month"] == "己丑"
+    assert get_meta(before)["solar_year_for_pillar"] == 1990
+    assert get_chart(after)["year"] == "辛未"
+    assert get_chart(after)["month"] == "庚寅"
+    assert get_meta(after)["solar_year_for_pillar"] == 1991
 
 
 def test_lixia_cases():
-    assert get_chart("1991-05-05T12:00:00")["month"] == "壬辰"
-    assert get_chart("1991-05-06T12:00:00")["month"] == "癸巳"
+    lixia = _solar_term_dt(1991, "立夏")
+    before = _local_text(lixia - timedelta(hours=1))
+    after = _local_text(lixia + timedelta(hours=1))
+    assert get_chart(before)["month"] == "壬辰"
+    assert get_chart(after)["month"] == "癸巳"
 
 
 def test_auxiliary_chart_tables_for_sample():
