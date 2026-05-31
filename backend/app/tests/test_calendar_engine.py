@@ -84,7 +84,24 @@ def test_sewoon_and_manseryuk_rows():
     assert any(row["key"] == "relative_xunkong" for row in rows)
 
 
-def test_fortune_overlay_and_timeline_for_sample():
+def test_structure_analyzer_delta_inputs_for_sample():
+    chart_result = get_result("1991-05-29T16:36:00", sex="male")
+    from app.core.fact_builder.service import build_fact
+
+    facts = build_fact(chart_result)
+    assert facts["structure_analyzer"]["model_version"] == "structure_analyzer_v1.0.0"
+    delta = facts["DeltaInputs"]
+    assert delta["climate"]["HeatScore"] >= -3
+    assert delta["climate"]["MoistureScore"] >= 2
+    assert delta["climate"]["humidity"] == "과습"
+    assert delta["binding"]["BindingStrength"] >= 0
+    assert 0 <= delta["concentration"]["CI"] <= 5
+    assert delta["diseases"]["core"] == "기후형"
+    assert delta["yongshin"]["element"] == "火"
+    assert "balance" in delta["extension"]
+
+
+def test_fortune_overlay_timeline_and_luck_delta_for_sample():
     chart_result = get_result("1991-05-29T16:36:00", sex="male")
     from app.core.fact_builder.service import build_fact
     from app.core.fortune.analysis import analyze_fortune
@@ -102,6 +119,8 @@ def test_fortune_overlay_and_timeline_for_sample():
     assert len(fortune["timeline"]["daewoon"]) == 10
     assert len(fortune["timeline"]["sewoon"]) == 11
     assert "supportive_top" in fortune["timeline"]["highlights"]
+    assert fortune["luck_delta"]["model_version"] == "luck_delta_v1.0.0"
+    assert "delta_1_climate" in fortune["luck_delta"]["current"]["sewoon"]["luck_delta"]
 
 
 def test_solar_term_table_status_metadata():
