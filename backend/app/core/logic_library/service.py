@@ -109,7 +109,13 @@ def _infer_conditions(text: str) -> dict[str, Any]:
     }
     for element, words in element_words.items():
         if _contains_any(text, words) and _contains_any(text, ["많", "과", "다", "왕", "강"]):
-            conditions["all"].append({"path": "facts.element_balance", "op": "element_high", "value": element, "label": f"{element} 과다/강"})
+            conditions["all"].append({"path": "DeltaInputs.concentration.dominant_element", "op": "eq_or_element_high", "value": element, "label": f"{element} 우세/과다"})
+    if _contains_any(text, ["조열", "뜨겁", "열이", "화다"]):
+        conditions["all"].append({"path": "DeltaInputs.climate.HeatScore", "op": "gte", "value": 2, "label": "HeatScore ≥ 2"})
+    if _contains_any(text, ["습", "침수", "물이", "물에", "수습"]):
+        conditions["all"].append({"path": "DeltaInputs.climate.MoistureScore", "op": "gte", "value": 2, "label": "MoistureScore ≥ 2"})
+    if _contains_any(text, ["건조", "마른", "말라"]):
+        conditions["all"].append({"path": "DeltaInputs.climate.MoistureScore", "op": "lte", "value": -2, "label": "MoistureScore ≤ -2"})
     if not conditions["all"]:
         conditions["all"].append({"path": "chart", "op": "exists", "value": True, "label": "일반 참고 문장"})
     return conditions
@@ -142,28 +148,12 @@ def structure_logic_text(request: LogicStructureRequest) -> dict[str, Any]:
         "title": title,
         "category": category,
         "conditions": _infer_conditions(text),
-        "interpretation": {
-            "summary": text,
-            "normalized_summary": _normalize_sentence(text),
-            "usage": "보조 판단 문장으로 사용. 단정 결론이 아니라 후보 태그와 해석 근거로 활용.",
-        },
+        "interpretation": {"summary": text, "normalized_summary": _normalize_sentence(text), "usage": "보조 판단 문장으로 사용. 단정 결론이 아니라 후보 태그와 해석 근거로 활용."},
         "effect": _infer_effect(text, category),
-        "caution": {
-            "risk_level": "high" if _contains_any(text, ["술", "여자", "바람", "죽", "이혼", "사망", "범죄"]) else "medium",
-            "notes": [
-                "문장 원문은 보존하고, 엔진에는 조건/태그/점수로만 반영합니다.",
-                "성향·사건 단정 금지. 원국 전체, 대운·세운, 보조 조건과 함께 봅니다.",
-                "active=true로 켜기 전 반드시 검토하세요.",
-            ],
-        },
-        "engine_mapping": {
-            "candidate_type": "logic_card",
-            "active_required": True,
-            "finalizer_role": "auxiliary_evidence",
-            "rule_candidate_ready": False,
-        },
+        "caution": {"risk_level": "high" if _contains_any(text, ["술", "여자", "바람", "죽", "이혼", "사망", "범죄"]) else "medium", "notes": ["문장 원문은 보존하고, 엔진에는 조건/태그/점수로만 반영합니다.", "성향·사건 단정 금지. 원국 전체, 대운·세운, 보조 조건과 함께 봅니다.", "active=true로 켜기 전 반드시 검토하세요."]},
+        "engine_mapping": {"candidate_type": "logic_card", "active_required": True, "finalizer_role": "auxiliary_evidence", "rule_candidate_ready": False},
     }
-    return {"original_text": text, "structured": structured, "confidence": "scaffold", "notes": ["I-3 구조화는 규칙 기반 초안입니다.", "추후 LLM 구조화기로 교체 가능하도록 입출력 형태를 고정했습니다."]}
+    return {"original_text": text, "structured": structured, "confidence": "scaffold", "notes": ["J4: DeltaInputs 경로 조건을 지원합니다.", "추후 LLM 구조화기로 교체 가능하도록 입출력 형태를 고정했습니다."]}
 
 
 def _normalize_sentence(text: str) -> str:
@@ -183,19 +173,7 @@ def create_logic_card(request: LogicCardCreateRequest) -> dict[str, Any]:
         active = True
     if status == "disabled":
         active = False
-    card = {
-        "id": logic_id,
-        "title": request.title or structured.get("title") or request.original_text[:30],
-        "status": status,
-        "active": active,
-        "category": request.category if request.category != "auto" else structured.get("category", "일반 명리 문장"),
-        "original_text": request.original_text,
-        "structured": structured,
-        "source": request.source,
-        "tags": list(dict.fromkeys(request.tags + structured.get("effect", {}).get("tags", []))),
-        "created_at": _now(),
-        "updated_at": _now(),
-    }
+    card = {"id": logic_id, "title": request.title or structured.get("title") or request.original_text[:30], "status": status, "active": active, "category": request.category if request.category != "auto" else structured.get("category", "일반 명리 문장"), "original_text": request.original_text, "structured": structured, "source": request.source, "tags": list(dict.fromkeys(request.tags + structured.get("effect", {}).get("tags", []))), "created_at": _now(), "updated_at": _now()}
     path = _logic_path(logic_id)
     _logic_dir().mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(card, allow_unicode=True, sort_keys=False), encoding="utf-8")
@@ -291,30 +269,65 @@ def match_logic_cards(request: LogicMatchRequest) -> dict[str, Any]:
         score, reasons = _match_card(card, chart, facts)
         if score > 0:
             matches.append({"id": card.get("id"), "title": card.get("title"), "category": card.get("category"), "active": card.get("active"), "score": score, "reasons": reasons, "effect": card.get("structured", {}).get("effect", {}), "original_text": card.get("original_text")})
-    return {"chart": chart, "matches": sorted(matches, key=lambda x: x["score"], reverse=True), "facts_used": {"temperature": facts.get("temperature_profile"), "moisture": facts.get("moisture_profile")}}
+    return {"chart": chart, "matches": sorted(matches, key=lambda x: x["score"], reverse=True), "facts_used": {"DeltaInputs": facts.get("DeltaInputs"), "temperature": facts.get("temperature_profile"), "moisture": facts.get("moisture_profile")}}
+
+
+def _get_path(root: dict[str, Any], path: str) -> Any:
+    if path == "chart":
+        return root.get("chart")
+    current: Any = root
+    for part in path.split("."):
+        if isinstance(current, dict):
+            current = current.get(part)
+        else:
+            return None
+    return current
+
+
+def _compare(actual: Any, op: str, expected: Any) -> bool:
+    if op == "exists":
+        return actual is not None
+    if op in ["eq", "equals"]:
+        return actual == expected
+    if op == "contains":
+        return expected in actual if actual is not None else False
+    if op == "gte":
+        return actual is not None and actual >= expected
+    if op == "lte":
+        return actual is not None and actual <= expected
+    if op == "gt":
+        return actual is not None and actual > expected
+    if op == "lt":
+        return actual is not None and actual < expected
+    return False
 
 
 def _match_card(card: dict[str, Any], chart: dict[str, str], facts: dict[str, Any]) -> tuple[float, list[str]]:
     conditions = card.get("structured", {}).get("conditions", {}).get("all", [])
     if not conditions:
         return 0.1, ["조건 없는 참고 문장"]
+    root = {"chart": chart, "facts": facts, "DeltaInputs": facts.get("DeltaInputs") or facts.get("delta_inputs", {})}
     score = 0.0
     reasons = []
     for condition in conditions:
         path = condition.get("path")
         op = condition.get("op")
         value = condition.get("value")
-        if path == "chart.day" and op == "contains" and value in chart.get("day", ""):
-            score += 1.0
-            reasons.append(condition.get("label") or f"일주에 {value} 포함")
-        elif path == "chart" and op == "exists":
-            score += 0.1
-            reasons.append("일반 참고 조건")
-        elif path == "facts.element_balance" and op == "element_high":
-            # 아직 정밀 오행 세력 스코어가 없으므로 원국 문자 출현 횟수 기반 임시 매칭
-            element_chars = {"火": "丙丁巳午", "水": "壬癸子亥", "木": "甲乙寅卯", "金": "庚辛申酉", "土": "戊己辰戌丑未"}.get(value, "")
-            count = sum(1 for pillar in chart.values() for ch in pillar if ch in element_chars)
-            if count >= 2:
+        actual = _get_path(root, path)
+        matched = False
+        if op == "eq_or_element_high":
+            dominant = _get_path(root, "DeltaInputs.concentration.dominant_element")
+            counts = facts.get("elements", {})
+            matched = dominant == value or counts.get(value, 0) >= 2
+            if matched:
+                score += 0.8
+                reasons.append(condition.get("label") or f"{value} 우세/과다")
+        elif _compare(actual, op, value):
+            score += 1.0 if path in ["chart.day", "DeltaInputs.concentration.dominant_element"] else 0.6
+            reasons.append(condition.get("label") or f"{path} {op} {value}")
+        if path == "facts.element_balance" and op == "element_high":
+            counts = facts.get("elements", {})
+            if counts.get(value, 0) >= 2:
                 score += 0.7
-                reasons.append(condition.get("label") or f"{value} 출현 {count}회")
+                reasons.append(condition.get("label") or f"{value} 출현 {counts.get(value, 0)}회")
     return score, reasons
