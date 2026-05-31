@@ -14,13 +14,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <header className="topbar">
             <Link className="brand" href="/dashboard">
               <strong>Saju Engine</strong>
-              <span>Rule · Case · Report Workbench</span>
+              <span>Rule · Case · Logic · Report Workbench</span>
             </Link>
             <nav className="nav">
               <Link href="/dashboard">Dashboard</Link>
+              <Link href="/logic">Logic Library</Link>
+              <Link href="/logic/new">New Logic</Link>
               <Link href="/cases">Cases</Link>
               <Link href="/cases/new">New Case</Link>
               <Link href="/rules">Rules</Link>
+              <Link href="/rules/candidates">Rule Candidates</Link>
               <Link href="/governance">Governance</Link>
               <Link href="/regressions">Regression</Link>
               <Link href="/reports/preview">Report</Link>
