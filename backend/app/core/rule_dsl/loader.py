@@ -21,7 +21,7 @@ def load_rules(version: str = "v1.0.0") -> list[dict[str, Any]]:
         return []
 
     rules: list[dict[str, Any]] = []
-    for path in sorted(base.glob("*.yaml")):
+    for path in sorted(base.rglob("*.yaml")):
         with path.open("r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
         raw = path.read_text(encoding="utf-8")
