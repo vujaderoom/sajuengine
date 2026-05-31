@@ -56,8 +56,20 @@ def finalize(proposals: list[dict], facts: dict) -> FinalEngineResult:
     selected_symbols = yongshin_p.get("symbols", []) if yongshin_p else []
     medicine_name = "말림·건조·증발" if selected_primary == "火" else (medicine_p.get("value") if medicine_p else "미정")
     medicine_action = "drying_evaporation" if selected_primary == "火" else (medicine_p.get("action") or "unknown" if medicine_p else "unknown")
-    core_name = core_p.get("value") if core_p else "미정"
-    core_type = "climate_waterlogged" if waterlogged else "flow_blocked"
+
+    # Waterlogged climate cases must not be labeled as flow-blocked merely because 巳亥沖/申亥害 exists.
+    # In this structure, relation blockage is supporting evidence, while the core disease is warm-rain waterlogging.
+    if waterlogged:
+        core_name = facts.get("disease_profile", {}).get("disease_image") or "수습 과다·침수형 병"
+        core_type = "climate_waterlogged"
+        core_reason = facts.get("water", {}).get("image") or "巳月 己土에 癸水·壬水·亥水·申金 수원이 이어져 습이 과해진 구조"
+        core_source_rule = "fact_builder.waterlogged_profile"
+    else:
+        core_name = core_p.get("value") if core_p else "미정"
+        core_type = "flow_blocked"
+        core_reason = core_p.get("reason", "") if core_p else "핵심 병 후보가 충분하지 않음"
+        core_source_rule = core_p.get("source_rule") if core_p else None
+
     core_depth = int(facts.get("raw", {}).get("Depth", 2 if core_p else 1))
 
     confidence_score = 0.9 if selected_primary == "火" else (0.86 if core_p else 0.3)
@@ -75,8 +87,8 @@ def finalize(proposals: list[dict], facts: dict) -> FinalEngineResult:
             type=core_type,
             name=core_name,
             depth=core_depth,
-            reason=core_p.get("reason", "") if core_p else "핵심 병 후보가 충분하지 않음",
-            source_rule=core_p.get("source_rule") if core_p else None,
+            reason=core_reason,
+            source_rule=core_source_rule,
         ),
         derived_diseases=[
             DerivedDisease(
@@ -105,7 +117,7 @@ def finalize(proposals: list[dict], facts: dict) -> FinalEngineResult:
         gishin_candidates=[
             GishinCandidate(value="水", reason="침수형에서는 추가 수원이 병을 깊게 할 수 있음", source="waterlogged_profile")
         ] if waterlogged else [],
-        stability_grade="B" if core_p else "D",
+        stability_grade="B" if (core_p or waterlogged) else "D",
         confidence=Confidence(score=confidence_score, level=_confidence_level(confidence_score)),
     )
 
