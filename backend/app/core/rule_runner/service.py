@@ -6,6 +6,7 @@ from app.core.calendar.service import calculate_chart
 from app.core.fact_builder.service import build_fact
 from app.core.finalizer.service import finalize, to_legacy_final_result
 from app.core.fortune.analysis import analyze_fortune
+from app.core.logic_library.service import LogicMatchRequest, match_logic_cards
 from app.core.rule_dsl.evaluator import evaluate_when
 from app.core.rule_dsl.loader import load_rules
 from app.schemas import RuleRunnerRequest
@@ -50,15 +51,33 @@ def _apply_counter_rules(rule: dict, proposal: dict, context: dict) -> list[dict
     return results
 
 
+def _logic_matches_for_request(request: RuleRunnerRequest) -> dict:
+    return match_logic_cards(LogicMatchRequest(birth=request.birth, include_inactive=False))
+
+
 def execute_rule_runner(request: RuleRunnerRequest) -> dict:
     execution_id = "ex_" + uuid4().hex[:12]
     chart_payload = calculate_chart(request.birth)
     fact = build_fact(chart_payload)
+    logic_match_result = _logic_matches_for_request(request)
+    fact["logic_matches"] = logic_match_result.get("matches", [])
+    fact["logic_match_meta"] = {
+        "active_only": True,
+        "match_count": len(fact["logic_matches"]),
+        "model_version": "logic_match_v1.0.0",
+    }
     fortune_analysis = analyze_fortune(chart_payload, fact)
-    context = {"birth": request.birth.model_dump(), "chart": chart_payload["chart"], "fact": fact, "fortune_analysis": fortune_analysis}
+    context = {
+        "birth": request.birth.model_dump(),
+        "chart": chart_payload["chart"],
+        "fact": fact,
+        "fortune_analysis": fortune_analysis,
+        "logic_matches": fact["logic_matches"],
+    }
 
     decision_trace = [
         {"type": "FACT_BUILT", "stage": "fact_builder", "output_json": fact},
+        {"type": "LOGIC_CARDS_MATCHED", "stage": "logic_library", "output_json": fact["logic_match_meta"], "matches": fact["logic_matches"]},
         {"type": "FORTUNE_ANALYZED", "stage": "fortune_analysis", "output_json": fortune_analysis["current"]},
     ]
     proposals: list[dict] = []
@@ -131,6 +150,7 @@ def execute_rule_runner(request: RuleRunnerRequest) -> dict:
         "birth": request.birth.model_dump(),
         "chart_result": chart_payload,
         "facts": fact,
+        "logic_matches": fact["logic_matches"],
         "fortune_analysis": fortune_analysis,
         "loaded_rules": [
             {
