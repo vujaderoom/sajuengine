@@ -19,6 +19,13 @@ from app.core.llm.renderer import render_report
 from app.core.llm.verifier import verify_output
 from app.core.regression.runner import run_case_by_id, run_regressions
 from app.core.report_payload.builder import build_report_payload
+from app.core.rule_candidates.service import (
+    PublishCandidateRequest,
+    get_rule_candidate,
+    list_rule_candidates,
+    preview_candidate_impact,
+    publish_candidate,
+)
 from app.core.rule_dsl.loader import detail_rule, summarize_rules
 from app.core.rule_dsl.simulator import simulate_rule
 from app.core.rule_dsl.validator import validate_all_rules, validate_rule_by_id
@@ -39,7 +46,7 @@ class RenderRequest(BaseModel):
     user_question: str = ""
 
 
-app = FastAPI(title="Saju Engine", version="0.13.0")
+app = FastAPI(title="Saju Engine", version="0.14.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -54,11 +61,12 @@ app.add_middleware(
 def root():
     return {
         "service": "sajuengine",
-        "version": "0.13.0",
+        "version": "0.14.0",
         "docs": "/docs",
         "health": "/api/health",
         "sample": "/api/v1/rule-runner/sample",
         "rules": "/api/v1/rules",
+        "rule_candidates": "/api/v1/rule-candidates",
         "cases": "/api/v1/cases",
         "case_authoring": "/api/v1/cases/authoring/preview",
         "case_natural_logic": "/api/v1/cases/authoring/structure-natural-logic",
@@ -71,7 +79,7 @@ def root():
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "sajuengine", "version": "0.13.0"}
+    return {"status": "ok", "service": "sajuengine", "version": "0.14.0"}
 
 
 @app.get("/api/v1/governance")
@@ -112,6 +120,35 @@ def case_run(case_id: str):
     result = run_case_by_id(case_id)
     if not result:
         raise HTTPException(status_code=404, detail="Case not found")
+    return result
+
+
+@app.get("/api/v1/rule-candidates")
+def rule_candidates():
+    return list_rule_candidates()
+
+
+@app.get("/api/v1/rule-candidates/{candidate_id}")
+def rule_candidate_detail(candidate_id: str):
+    result = get_rule_candidate(candidate_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Rule candidate not found")
+    return result
+
+
+@app.get("/api/v1/rule-candidates/{candidate_id}/preview-impact")
+def rule_candidate_preview_impact(candidate_id: str):
+    result = preview_candidate_impact(candidate_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Rule candidate not found")
+    return result
+
+
+@app.post("/api/v1/rule-candidates/{candidate_id}/publish")
+def rule_candidate_publish(candidate_id: str, request: PublishCandidateRequest):
+    result = publish_candidate(candidate_id, request)
+    if not result:
+        raise HTTPException(status_code=404, detail="Rule candidate not found")
     return result
 
 
