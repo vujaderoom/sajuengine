@@ -18,11 +18,17 @@ def build_report_payload(request: RuleRunnerRequest) -> dict:
     final_result = result["final_result"]
     proposal_summary = _group_proposals(result["proposals"])
     proposal_summary["counter_rules_applied"] = result["counter_rules_applied"]
+    logic_matches = result.get("logic_matches", facts.get("logic_matches", []))
 
     payload = {
         "chart": result["chart_result"]["chart"],
         "birth": result["birth"],
         "facts": facts,
+        "logic_evidence": {
+            "matches": logic_matches,
+            "match_count": len(logic_matches),
+            "usage_rule": "active Logic Card만 보조 근거로 사용하며 최종 병·약·용신을 직접 덮어쓰지 않는다.",
+        },
         "climate_profile": {
             "raw": facts.get("raw", {}),
             "display": facts.get("display", {}),
@@ -57,16 +63,16 @@ def build_report_payload(request: RuleRunnerRequest) -> dict:
             "delta_1": 0,
             "delta_2": 0,
             "delta_3": 0,
-            "auxiliary_delta": 0,
+            "auxiliary_delta": len(logic_matches),
             "final_delta": 0,
         },
-        "rag_evidence": [],
+        "rag_evidence": logic_matches,
         "decision_trace_id": result["execution_id"],
         "decision_trace": result["decision_trace"],
         "rule_version": result["rule_version"],
         "renderer_guardrails": [
             "LLM은 core_disease, medicine, yongshin, depth를 새로 추론하거나 변경하지 않는다.",
-            "RAG 근거는 판단을 덮어쓰지 않고 보조 근거로만 사용한다.",
+            "Logic Card/RAG 근거는 판단을 덮어쓰지 않고 보조 근거로만 사용한다.",
             "신강·신약, 십신, 12운성·신살만으로 핵심 병·용신을 확정하지 않는다.",
             "엔진 JSON에 없는 극단적 사건 표현을 생성하지 않는다.",
         ],
